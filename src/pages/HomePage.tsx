@@ -1,5 +1,5 @@
-import React from 'react';
-import { Activity } from 'lucide-react';
+import React from "react";
+import { Activity } from "../components/Icons";
 
 const HomePage = () => {
   return (
@@ -8,12 +8,13 @@ const HomePage = () => {
         <Activity className="mr-2 text-blue-600" size={32} />
         <h1 className="text-3xl font-bold">Sentry Tracing Demo</h1>
       </div>
-      
+
       <div className="bg-white shadow rounded-lg p-6">
         <p className="text-gray-600 mb-4">
-          This demo application showcases Sentry's tracing capabilities across various scenarios:
+          This demo application showcases Sentry's tracing capabilities across
+          various scenarios:
         </p>
-        
+
         <div className="grid gap-4">
           <Feature
             title="Slow API Calls"
@@ -41,7 +42,13 @@ const HomePage = () => {
   );
 };
 
-const Feature = ({ title, description }: { title: string; description: string }) => (
+const Feature = ({
+  title,
+  description,
+}: {
+  title: string;
+  description: string;
+}) => (
   <div className="border-l-4 border-blue-500 pl-4">
     <h3 className="font-semibold text-lg">{title}</h3>
     <p className="text-gray-600">{description}</p>

@@ -1,29 +1,47 @@
-import React, { useState } from "react";
-import { Database } from "lucide-react";
+import { useState } from "react";
+import { Database } from "../components/Icons";
+import * as Sentry from "@sentry/react";
+import { api } from "../services/api";
 
 interface DbResult {
   id: number;
-  name: string;
+  name: string | null;
   email: string;
-  createdAt: string;
+  created_at: string;
 }
 
 const DbQueryPage = () => {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<DbResult[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   const performQuery = async () => {
     setLoading(true);
-    try {
-      const response = await fetch("/api/db");
-      const data = await response.json();
-      setResult(data);
-    } catch (error) {
-      console.error("Error:", error);
-      setResult(null);
-    } finally {
-      setLoading(false);
-    }
+    setResult(null);
+    setError(null);
+
+    await Sentry.startSpan(
+      {
+        name: "DbQueryPage",
+        op: "db.query",
+      },
+      async () => {
+        try {
+          const data = await api.getUsers();
+          setResult(data);
+        } catch (error) {
+          console.error("Error:", error);
+          Sentry.captureException(error);
+          setError(
+            error instanceof Error
+              ? error.message
+              : "An unexpected error occurred"
+          );
+        } finally {
+          setLoading(false);
+        }
+      }
+    );
   };
 
   return (
@@ -41,6 +59,10 @@ const DbQueryPage = () => {
         >
           {loading ? "Querying..." : "Run Query"}
         </button>
+
+        {error && (
+          <div className="mt-4 p-4 bg-red-50 text-red-700 rounded">{error}</div>
+        )}
 
         {result && (
           <div className="mt-4 p-4 bg-gray-50 rounded">

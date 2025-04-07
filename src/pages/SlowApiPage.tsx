@@ -1,42 +1,58 @@
 import React, { useState } from "react";
-import { Clock } from "lucide-react";
+import { Clock, RefreshCw } from "../components/Icons";
+import * as Sentry from "@sentry/react";
+import { api } from "../services/api";
 
 const SlowApiPage = () => {
   const [loading, setLoading] = useState(false);
   const [response, setResponse] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [isFixing, setIsFixing] = useState(false);
+  const [showFixButton, setShowFixButton] = useState(false);
 
-  const makeSlowRequest = async () => {
+  const makeSlowRequest = async (timeout: number = 3) => {
     setLoading(true);
     setResponse(null);
     setError(null);
+    setShowFixButton(false);
 
     try {
-      const response = await fetch("/api/slow");
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => {
+          reject(new Error(`Request timed out after ${timeout} seconds`));
+        }, timeout * 1000);
+      });
 
-      // Check if response is ok and content type is JSON
-      const contentType = response.headers.get("content-type");
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      if (!contentType || !contentType.includes("application/json")) {
-        throw new Error(
-          `Invalid content type: ${
-            contentType || "none"
-          }. Expected application/json`
-        );
-      }
+      const requestPromise = api.getSlowResponse();
 
-      const data = await response.json();
+      const data = await Promise.race([requestPromise, timeoutPromise]);
       setResponse(data.message);
     } catch (error) {
       console.error("Error:", error);
-      setError(
-        error instanceof Error ? error.message : "An unexpected error occurred"
-      );
-      setResponse(null);
+      Sentry.captureException(error);
+      setError("The request took too long to complete.");
+      setShowFixButton(true);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fixTimeout = async () => {
+    setIsFixing(true);
+    setError(null);
+    setResponse(null);
+    setShowFixButton(false);
+
+    try {
+      const data = await api.getSlowResponse();
+      setResponse(data.message);
+    } catch (error) {
+      console.error("Error:", error);
+      Sentry.captureException(error);
+      setError("Failed to fix the timeout. Please try again.");
+      setShowFixButton(true);
+    } finally {
+      setIsFixing(false);
     }
   };
 
@@ -48,25 +64,41 @@ const SlowApiPage = () => {
       </div>
 
       <div className="bg-white shadow rounded-lg p-6">
-        <button
-          onClick={makeSlowRequest}
-          disabled={loading}
-          className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 disabled:opacity-50"
-        >
-          {loading ? "Loading..." : "Make Slow Request"}
-        </button>
+        <div className="flex gap-4">
+          <button
+            onClick={() => makeSlowRequest()}
+            disabled={loading || isFixing}
+            className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 disabled:opacity-50"
+          >
+            {loading ? "Loading..." : "Make Slow Request"}
+          </button>
+
+          {showFixButton && (
+            <button
+              onClick={fixTimeout}
+              disabled={loading || isFixing}
+              className="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600 disabled:opacity-50 flex items-center gap-2"
+            >
+              {isFixing ? (
+                <>
+                  <RefreshCw className="animate-spin" />
+                  Fixing...
+                </>
+              ) : (
+                "Fix Timeout"
+              )}
+            </button>
+          )}
+        </div>
 
         {response && (
-          <div className="mt-4 p-4 bg-gray-50 rounded">
-            <p>{response}</p>
+          <div className="mt-4 p-4 bg-green-50 text-green-700 rounded">
+            {response}
           </div>
         )}
 
         {error && (
-          <div className="mt-4 p-4 bg-red-50 text-red-700 rounded border border-red-200">
-            <p className="font-medium">Error:</p>
-            <p>{error}</p>
-          </div>
+          <div className="mt-4 p-4 bg-red-50 text-red-700 rounded">{error}</div>
         )}
       </div>
     </div>

@@ -1,20 +1,41 @@
 import React, { useState } from "react";
-import { Layers } from "lucide-react";
+import { Layers } from "../components/Icons";
+import * as Sentry from "@sentry/react";
 
 const BatchRequestsPage = () => {
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState<string[]>([]);
+  const [error, setError] = useState<string | null>(null);
 
   const performBatchRequests = async () => {
     setLoading(true);
     setResults([]);
+    setError(null);
 
     try {
       const response = await fetch("/api/batch");
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const contentType = response.headers.get("content-type");
+      if (!contentType || !contentType.includes("application/json")) {
+        throw new Error(
+          `Invalid content type: ${
+            contentType || "none"
+          }. Expected application/json`
+        );
+      }
+
       const data = await response.json();
       setResults(data);
     } catch (error) {
       console.error("Error:", error);
+      Sentry.captureException(error);
+      setError(
+        error instanceof Error ? error.message : "An unexpected error occurred"
+      );
     } finally {
       setLoading(false);
     }
@@ -35,6 +56,13 @@ const BatchRequestsPage = () => {
         >
           {loading ? "Processing..." : "Start Batch Requests"}
         </button>
+
+        {error && (
+          <div className="mt-4 p-4 bg-red-50 text-red-700 rounded border border-red-200">
+            <p className="font-medium">Error:</p>
+            <p>{error}</p>
+          </div>
+        )}
 
         {results.length > 0 && (
           <div className="mt-4 space-y-2">

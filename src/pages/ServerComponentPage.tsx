@@ -1,21 +1,58 @@
 import React, { Suspense } from "react";
-import { Server } from "lucide-react";
+import { Server } from "../components/Icons";
+import * as Sentry from "@sentry/react";
 
 interface ServerData {
   message: string;
+  timestamp?: string;
 }
 
-// Simulated Server Component
-const SlowServerComponent = () => {
+// Server Component with proper backend integration
+const ServerComponent = () => {
   const [data, setData] = React.useState<ServerData | null>(null);
   const [loading, setLoading] = React.useState(true);
+  const [error, setError] = React.useState<string | null>(null);
 
   React.useEffect(() => {
     const loadData = async () => {
-      // Simulate slow server-side rendering
-      await new Promise((resolve) => setTimeout(resolve, 1500));
-      setData({ message: "Server Component Data Loaded" });
-      setLoading(false);
+      // Start a transaction for component loading
+      const transaction = Sentry.startTransaction({
+        name: "server.component.load",
+        op: "component.load",
+      });
+
+      try {
+        // Create a span for the API call
+        const span = transaction.startChild({
+          op: "http.client",
+          description: "Fetch server component data",
+        });
+
+        const response = await fetch("/api/slow");
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        const result = await response.json();
+        setData(result);
+
+        span.setStatus("ok");
+        span.finish();
+      } catch (error) {
+        console.error("Error:", error);
+        Sentry.captureException(error, {
+          tags: {
+            component: "ServerComponent",
+          },
+        });
+        setError(
+          error instanceof Error
+            ? error.message
+            : "An unexpected error occurred"
+        );
+      } finally {
+        setLoading(false);
+        transaction.finish();
+      }
     };
 
     loadData();
@@ -23,6 +60,15 @@ const SlowServerComponent = () => {
 
   if (loading) {
     return <div className="animate-pulse bg-gray-200 h-20 rounded"></div>;
+  }
+
+  if (error) {
+    return (
+      <div className="p-4 bg-red-50 text-red-700 rounded border border-red-200">
+        <p className="font-medium">Error:</p>
+        <p>{error}</p>
+      </div>
+    );
   }
 
   return (
@@ -46,7 +92,7 @@ const ServerComponentPage = () => {
             <div className="animate-pulse bg-gray-200 h-20 rounded"></div>
           }
         >
-          <SlowServerComponent />
+          <ServerComponent />
         </Suspense>
       </div>
     </div>

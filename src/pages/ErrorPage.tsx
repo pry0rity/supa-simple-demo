@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { AlertTriangle } from "lucide-react";
+import { AlertTriangle } from "../components/Icons";
 
 const ErrorPage = () => {
   const [error, setError] = useState<string | null>(null);
