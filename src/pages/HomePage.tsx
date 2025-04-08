@@ -2,6 +2,30 @@ import { Activity } from "../components/Icons";
 import { useEffect } from "react";
 import * as Sentry from "@sentry/react";
 
+const features = [
+  {
+    title: "Slow API Calls",
+    description:
+      "Demonstrates tracing through artificially delayed API responses",
+  },
+  {
+    title: "Error Handling",
+    description: "Shows how errors are captured and traced through the system",
+  },
+  {
+    title: "Database Operations",
+    description: "Simulates and traces database queries with Prisma",
+  },
+  {
+    title: "Batch Processing",
+    description: "Traces multiple concurrent API requests",
+  },
+  {
+    title: "Component Loading",
+    description: "Demonstrates tracing in both server and client components",
+  },
+];
+
 const HomePage = () => {
   useEffect(() => {
     // Create a span for page view to demonstrate simple instrumentation
@@ -31,43 +55,16 @@ const HomePage = () => {
         </p>
 
         <div className="grid gap-4">
-          <Feature
-            title="Slow API Calls"
-            description="Demonstrates tracing through artificially delayed API responses"
-          />
-          <Feature
-            title="Error Handling"
-            description="Shows how errors are captured and traced through the system"
-          />
-          <Feature
-            title="Database Operations"
-            description="Simulates and traces database queries with Prisma"
-          />
-          <Feature
-            title="Batch Processing"
-            description="Traces multiple concurrent API requests"
-          />
-          <Feature
-            title="Component Loading"
-            description="Demonstrates tracing in both server and client components"
-          />
+          {features.map(({ title, description }) => (
+            <div key={title} className="border-l-4 border-blue-500 pl-4">
+              <h3 className="font-semibold text-lg">{title}</h3>
+              <p className="text-gray-600">{description}</p>
+            </div>
+          ))}
         </div>
       </div>
     </div>
   );
 };
-
-const Feature = ({
-  title,
-  description,
-}: {
-  title: string;
-  description: string;
-}) => (
-  <div className="border-l-4 border-blue-500 pl-4">
-    <h3 className="font-semibold text-lg">{title}</h3>
-    <p className="text-gray-600">{description}</p>
-  </div>
-);
 
 export default HomePage;
