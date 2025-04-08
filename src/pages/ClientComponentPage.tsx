@@ -21,30 +21,21 @@ const ClientComponentPage = () => {
 
   useEffect(() => {
     const fetchData = async () => {
-      await Sentry.startSpan(
-        {
-          name: "ClientComponentPage",
-          op: "user.attributes",
-        },
-        async (span) => {
-          try {
-            const result = await api.getUserAttributes();
-            setData(result);
-            span?.setStatus('ok');
-          } catch (error) {
-            console.error("Error:", error);
-            span?.setStatus('error');
-            Sentry.captureException(error);
-            setError(
-              error instanceof Error
-                ? error.message
-                : "An unexpected error occurred"
-            );
-          } finally {
-            setLoading(false);
-          }
-        }
-      );
+      try {
+        // This API call is automatically instrumented by Sentry
+        const result = await api.getUserAttributes();
+        setData(result);
+      } catch (error) {
+        console.error("Error:", error);
+        Sentry.captureException(error);
+        setError(
+          error instanceof Error
+            ? error.message
+            : "An unexpected error occurred"
+        );
+      } finally {
+        setLoading(false);
+      }
     };
 
     fetchData();

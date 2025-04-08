@@ -32,7 +32,10 @@ const BatchRequestsPage = () => {
 
     try {
       const startTime = performance.now();
+      
+      // This API call is automatically instrumented by Sentry
       const data = await api.getBatchResults();
+      
       const endTime = performance.now();
       const elapsed = endTime - startTime;
       

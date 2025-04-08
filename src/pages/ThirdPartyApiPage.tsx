@@ -40,7 +40,10 @@ const ThirdPartyApiPage = () => {
 
     try {
       const startTime = performance.now();
+      
+      // This API call is automatically instrumented by Sentry
       const data = await api.getExternalPost(postId);
+      
       const endTime = performance.now();
       const elapsed = endTime - startTime;
       
@@ -67,7 +70,10 @@ const ThirdPartyApiPage = () => {
 
     try {
       const startTime = performance.now();
+      
+      // This API call is automatically instrumented by Sentry
       const data = await api.getExternalComments(postData.id);
+      
       const endTime = performance.now();
       const elapsed = endTime - startTime;
       

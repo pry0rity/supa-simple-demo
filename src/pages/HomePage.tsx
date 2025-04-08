@@ -1,6 +1,22 @@
 import { Activity } from "../components/Icons";
+import { useEffect } from "react";
+import * as Sentry from "@sentry/react";
 
 const HomePage = () => {
+  useEffect(() => {
+    // Create a span for page view to demonstrate simple instrumentation
+    Sentry.startSpan(
+      {
+        name: "HomePage.view",
+        op: "page.view",
+      },
+      () => {
+        // This is a simple page view span with no async work
+        // Just demonstrating minimal instrumentation
+      }
+    );
+  }, []);
+
   return (
     <div className="max-w-4xl mx-auto">
       <div className="flex items-center mb-8">

@@ -10,7 +10,9 @@ interface SlowApiResponse {
 
 const SlowApiPage = () => {
   const [loading, setLoading] = useState(false);
-  const [responseData, setResponseData] = useState<SlowApiResponse | null>(null);
+  const [responseData, setResponseData] = useState<SlowApiResponse | null>(
+    null
+  );
   const [responseTime, setResponseTime] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isFixing, setIsFixing] = useState(false);
@@ -31,12 +33,14 @@ const SlowApiPage = () => {
       });
 
       const startTime = performance.now();
+
+      // This API call is automatically instrumented by Sentry
       const requestPromise = api.getSlowResponse();
 
       const data = await Promise.race([requestPromise, timeoutPromise]);
       const endTime = performance.now();
       const elapsed = endTime - startTime;
-      
+
       setResponseData(data);
       setResponseTime(Math.round(elapsed));
     } catch (error) {
@@ -58,10 +62,13 @@ const SlowApiPage = () => {
 
     try {
       const startTime = performance.now();
+
+      // This API call is automatically instrumented by Sentry
       const data = await api.getSlowResponse();
+
       const endTime = performance.now();
       const elapsed = endTime - startTime;
-      
+
       setResponseData(data);
       setResponseTime(Math.round(elapsed));
     } catch (error) {
@@ -115,13 +122,15 @@ const SlowApiPage = () => {
             <div className="p-4 bg-green-50 text-green-700 rounded">
               <h3 className="font-semibold mb-2">Response:</h3>
               <div className="mb-3">{responseData.message}</div>
-              
+
               {responseTime && (
                 <div className="flex items-center space-x-2 mb-1">
                   <div className="flex-1 bg-gray-200 rounded-full h-2">
                     <div
                       className="bg-blue-500 h-2 rounded-full"
-                      style={{ width: `${Math.min(100, (responseTime / 3000) * 100)}%` }}
+                      style={{
+                        width: `${Math.min(100, (responseTime / 3000) * 100)}%`,
+                      }}
                     ></div>
                   </div>
                   <div className="text-sm font-medium">
@@ -129,27 +138,31 @@ const SlowApiPage = () => {
                   </div>
                 </div>
               )}
-              
+
               <div className="text-xs text-green-600 mt-1">
-                {responseTime 
-                  ? `Exact response time: ${responseTime}ms` 
-                  : 'Response time not measured'}
+                {responseTime
+                  ? `Exact response time: ${responseTime}ms`
+                  : "Response time not measured"}
               </div>
             </div>
-            
+
             {/* Raw JSON */}
             <div>
-              <h3 className="font-semibold mb-2 text-sm text-gray-600">Raw JSON:</h3>
+              <h3 className="font-semibold mb-2 text-sm text-gray-600">
+                Raw JSON:
+              </h3>
               <pre className="bg-gray-50 p-3 rounded text-sm overflow-auto border border-gray-200">
                 {JSON.stringify(
-                  { 
+                  {
                     ...responseData,
                     _metadata: {
-                      responseTime: responseTime ? `${responseTime}ms` : 'Not measured',
-                      timestamp: new Date().toISOString()
-                    }
-                  }, 
-                  null, 
+                      responseTime: responseTime
+                        ? `${responseTime}ms`
+                        : "Not measured",
+                      timestamp: new Date().toISOString(),
+                    },
+                  },
+                  null,
                   2
                 )}
               </pre>

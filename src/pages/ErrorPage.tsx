@@ -1,18 +1,30 @@
 import { useState } from "react";
 import { AlertTriangle } from "../components/Icons";
+import * as Sentry from "@sentry/react";
 
 const ErrorPage = () => {
   const [error, setError] = useState<string | null>(null);
 
   const handleError = () => {
-    try {
-      throw new Error("This is your first error!");
-    } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "An unexpected error occurred"
-      );
-      console.error("Caught error:", err);
-    }
+    Sentry.startSpan(
+      {
+        name: "ErrorPage.triggerError",
+        op: "error.demo",
+      },
+      () => {
+        try {
+          throw new Error("This is your first error!");
+        } catch (err) {
+          setError(
+            err instanceof Error ? err.message : "An unexpected error occurred"
+          );
+          console.error("Caught error:", err);
+          
+          // Report to Sentry
+          Sentry.captureException(err);
+        }
+      }
+    );
   };
 
   return (

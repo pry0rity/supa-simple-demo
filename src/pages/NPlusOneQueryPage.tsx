@@ -56,6 +56,8 @@ const NPlusOneQueryPage = () => {
           // Then for each user, get their posts (N queries) - this is the N+1 problem
           for (const user of users.slice(0, 5)) { // Limit to 5 users for demo purposes
             queryCounter++;
+            
+            // Each API call is automatically instrumented
             const posts: Post[] = await api.getJsonPlaceholderUserPosts(user.id);
             
             // Add a small artificial delay to simulate database query time

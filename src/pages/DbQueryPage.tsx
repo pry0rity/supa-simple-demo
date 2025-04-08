@@ -20,30 +20,21 @@ const DbQueryPage = () => {
     setResult(null);
     setError(null);
 
-    await Sentry.startSpan(
-      {
-        name: "DbQueryPage",
-        op: "db.query",
-      },
-      async (span) => {
-        try {
-          const data = await api.getUsers();
-          setResult(data);
-          span?.setStatus('ok');
-        } catch (error) {
-          console.error("Error:", error);
-          span?.setStatus('error');
-          Sentry.captureException(error);
-          setError(
-            error instanceof Error
-              ? error.message
-              : "An unexpected error occurred"
-          );
-        } finally {
-          setLoading(false);
-        }
-      }
-    );
+    try {
+      // This fetch call is automatically instrumented by Sentry
+      const data = await api.getUsers();
+      setResult(data);
+    } catch (error) {
+      console.error("Error:", error);
+      Sentry.captureException(error);
+      setError(
+        error instanceof Error
+          ? error.message
+          : "An unexpected error occurred"
+      );
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
