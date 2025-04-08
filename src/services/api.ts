@@ -45,5 +45,19 @@ export const api = {
   
   getExternalComments: async (postId: number = 1) => {
     return simpleFetch(`https://jsonplaceholder.typicode.com/posts/${postId}/comments`);
+  },
+  
+  // N+1 Query Demo methods
+  getJsonPlaceholderUsers: async () => {
+    return simpleFetch('https://jsonplaceholder.typicode.com/users');
+  },
+  
+  getJsonPlaceholderUserPosts: async (userId: number) => {
+    return simpleFetch(`https://jsonplaceholder.typicode.com/posts?userId=${userId}`);
+  },
+  
+  getJsonPlaceholderPostsForUsers: async (userIds: number[]) => {
+    const idsParam = userIds.map(id => `userId=${id}`).join('&');
+    return simpleFetch(`https://jsonplaceholder.typicode.com/posts?${idsParam}`);
   }
 };

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { AlertOctagon } from "../components/Icons";
 import * as Sentry from "@sentry/react";
+import { api } from "../services/api";
 
 interface User {
   id: number;
@@ -39,43 +40,48 @@ const NPlusOneQueryPage = () => {
     const startTime = performance.now();
     let queryCounter = 0;
     
-    try {
-      // First query: Get all users (1 query)
-      queryCounter++;
-      const usersResponse = await fetch("https://jsonplaceholder.typicode.com/users");
-      const users: User[] = await usersResponse.json();
-      
-      const usersWithPosts: UserWithPosts[] = [];
-      
-      // Then for each user, get their posts (N queries) - this is the N+1 problem
-      for (const user of users.slice(0, 5)) { // Limit to 5 users for demo purposes
-        queryCounter++;
-        const postsResponse = await fetch(`https://jsonplaceholder.typicode.com/posts?userId=${user.id}`);
-        const posts: Post[] = await postsResponse.json();
-        
-        // Add a small artificial delay to simulate database query time
-        await new Promise(resolve => setTimeout(resolve, 100));
-        
-        usersWithPosts.push({
-          user,
-          posts
-        });
-      }
-      
-      const endTime = performance.now();
-      
-      setResults(usersWithPosts);
-      setQueryCount(queryCounter);
-      setTotalTime(Math.round(endTime - startTime));
-    } catch (error) {
-      console.error("Error:", error);
-      Sentry.captureException(error);
-      setError(
-        error instanceof Error ? error.message : "An unexpected error occurred"
-      );
-    } finally {
-      setLoading(false);
-    }
+    await Sentry.startSpan(
+      {
+        name: "NPlusOneQuery.problem",
+        op: "demo.n_plus_one",
+      },
+      async () => {
+        try {
+          // First query: Get all users (1 query)
+          queryCounter++;
+          const users: User[] = await api.getJsonPlaceholderUsers();
+          
+          const usersWithPosts: UserWithPosts[] = [];
+          
+          // Then for each user, get their posts (N queries) - this is the N+1 problem
+          for (const user of users.slice(0, 5)) { // Limit to 5 users for demo purposes
+            queryCounter++;
+            const posts: Post[] = await api.getJsonPlaceholderUserPosts(user.id);
+            
+            // Add a small artificial delay to simulate database query time
+            await new Promise(resolve => setTimeout(resolve, 100));
+            
+            usersWithPosts.push({
+              user,
+              posts
+            });
+          }
+          
+          const endTime = performance.now();
+          
+          setResults(usersWithPosts);
+          setQueryCount(queryCounter);
+          setTotalTime(Math.round(endTime - startTime));
+        } catch (error) {
+          console.error("Error:", error);
+          Sentry.captureException(error);
+          setError(
+            error instanceof Error ? error.message : "An unexpected error occurred"
+          );
+        } finally {
+          setLoading(false);
+        }
+      });
   };
 
   // Simulate the proper way to solve the N+1 query problem
@@ -90,46 +96,52 @@ const NPlusOneQueryPage = () => {
     const startTime = performance.now();
     let queryCounter = 0;
     
-    try {
-      // One query: Get all users
-      queryCounter++;
-      const usersResponse = await fetch("https://jsonplaceholder.typicode.com/users");
-      const users: User[] = await usersResponse.json();
-      
-      // One more query: Get all posts for these users in a single batch
-      queryCounter++;
-      // Build a query string with all user IDs
-      const userIds = users.slice(0, 5).map(user => user.id).join("&userId=");
-      const postsResponse = await fetch(`https://jsonplaceholder.typicode.com/posts?userId=${userIds}`);
-      const allPosts: Post[] = await postsResponse.json();
-      
-      // Artificially delay to simulate the join operation
-      await new Promise(resolve => setTimeout(resolve, 150));
-      
-      // In memory, associate posts with their users
-      const usersWithPosts: UserWithPosts[] = [];
-      for (const user of users.slice(0, 5)) {
-        const userPosts = allPosts.filter(post => post.userId === user.id);
-        usersWithPosts.push({
-          user,
-          posts: userPosts
-        });
-      }
-      
-      const endTime = performance.now();
-      
-      setResults(usersWithPosts);
-      setQueryCount(queryCounter);
-      setTotalTime(Math.round(endTime - startTime));
-    } catch (error) {
-      console.error("Error:", error);
-      Sentry.captureException(error);
-      setError(
-        error instanceof Error ? error.message : "An unexpected error occurred"
-      );
-    } finally {
-      setLoading(false);
-    }
+    await Sentry.startSpan(
+      {
+        name: "NPlusOneQuery.optimized",
+        op: "demo.optimized_query",
+      },
+      async () => {
+        try {
+          // One query: Get all users
+          queryCounter++;
+          const users: User[] = await api.getJsonPlaceholderUsers();
+          
+          // One more query: Get all posts for these users in a single batch
+          queryCounter++;
+          // Get the user IDs we want to fetch
+          const userIds = users.slice(0, 5).map(user => user.id);
+          // Use our optimized API method to fetch all posts in one request
+          const allPosts: Post[] = await api.getJsonPlaceholderPostsForUsers(userIds);
+          
+          // Artificially delay to simulate the join operation
+          await new Promise(resolve => setTimeout(resolve, 150));
+          
+          // In memory, associate posts with their users
+          const usersWithPosts: UserWithPosts[] = [];
+          for (const user of users.slice(0, 5)) {
+            const userPosts = allPosts.filter(post => post.userId === user.id);
+            usersWithPosts.push({
+              user,
+              posts: userPosts
+            });
+          }
+          
+          const endTime = performance.now();
+          
+          setResults(usersWithPosts);
+          setQueryCount(queryCounter);
+          setTotalTime(Math.round(endTime - startTime));
+        } catch (error) {
+          console.error("Error:", error);
+          Sentry.captureException(error);
+          setError(
+            error instanceof Error ? error.message : "An unexpected error occurred"
+          );
+        } finally {
+          setLoading(false);
+        }
+      });
   };
 
   return (
