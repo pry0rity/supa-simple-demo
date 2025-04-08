@@ -5,6 +5,8 @@ import dotenv from 'dotenv';
 import { initSentry } from './config/sentry.js';
 import { slowApiRoutes } from './routes/slowApiRoutes.js';
 import { dbQueryRoutes } from './routes/dbQueryRoutes.js';
+import { batchApiRoutes } from './routes/batchApiRoutes.js';
+import { userAttributesRoutes } from './routes/userAttributesRoutes.js';
 
 // Load environment variables
 dotenv.config();
@@ -29,6 +31,8 @@ app.use(tracingHandler);
 // Routes
 app.use('/api/slow', slowApiRoutes);
 app.use('/api/db', dbQueryRoutes);
+app.use('/api/batch', batchApiRoutes);
+app.use('/api/user-attributes', userAttributesRoutes);
 
 // Health check endpoint
 app.get('/health', (req, res) => {

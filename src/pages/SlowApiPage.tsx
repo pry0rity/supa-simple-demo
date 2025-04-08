@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import { Clock, RefreshCw } from "../components/Icons";
 import * as Sentry from "@sentry/react";
 import { api } from "../services/api";

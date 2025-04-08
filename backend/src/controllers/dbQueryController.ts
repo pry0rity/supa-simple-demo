@@ -16,40 +16,43 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 
 export const dbQueryController = {
   getUsers: async (req: Request, res: Response) => {
-    // Get the transaction that was created by Sentry.Handlers.tracingHandler()
-    const transaction = Sentry.getCurrentHub().getScope()?.getTransaction();
-    
     try {
-      // Create a child span for the database query
-      const dbSpan = transaction?.startChild({
-        op: 'db.supabase',
-        description: 'Fetch users from database'
-      });
-      
-      // Query the database for users
-      const { data: users, error } = await supabase
-        .from('users')
-        .select('id, name, email, created_at')
-        .order('created_at', { ascending: false });
+      // Use modern span instrumentation for database query
+      const users = await Sentry.startSpan(
+        {
+          name: 'db-query-users',
+          op: 'db.supabase',
+          description: 'Fetch users from database',
+        },
+        async (span) => {
+          // Query the database for users
+          const { data, error } = await supabase
+            .from('users')
+            .select('id, name, email, created_at')
+            .order('created_at', { ascending: false });
 
-      // Finish the database span
-      dbSpan?.finish();
+          if (error) {
+            span?.setStatus('error');
+            throw error;
+          }
+
+          span?.setStatus('ok');
+          return data;
+        }
+      );
       
-      if (error) {
-        throw error;
-      }
-      
-      // Create another child span for response formatting
-      const formatSpan = transaction?.startChild({
-        op: 'format',
-        description: 'Format response'
-      });
-      
-      // Just sending JSON directly, but in a real app you might do more processing
-      const result = users;
-      
-      // Finish the format span
-      formatSpan?.finish();
+      // Use modern span instrumentation for response formatting
+      const result = await Sentry.startSpan(
+        {
+          name: 'format-response',
+          op: 'format',
+          description: 'Format response',
+        },
+        async () => {
+          // Just returning users directly, but in a real app you might do more processing
+          return users;
+        }
+      );
       
       res.json(result);
     } catch (error) {

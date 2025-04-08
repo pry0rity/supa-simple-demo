@@ -25,12 +25,14 @@ const DbQueryPage = () => {
         name: "DbQueryPage",
         op: "db.query",
       },
-      async () => {
+      async (span) => {
         try {
           const data = await api.getUsers();
           setResult(data);
+          span?.setStatus('ok');
         } catch (error) {
           console.error("Error:", error);
+          span?.setStatus('error');
           Sentry.captureException(error);
           setError(
             error instanceof Error

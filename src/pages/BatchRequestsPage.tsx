@@ -1,6 +1,7 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import { Layers } from "../components/Icons";
 import * as Sentry from "@sentry/react";
+import { api } from "../services/api";
 
 const BatchRequestsPage = () => {
   const [loading, setLoading] = useState(false);
@@ -12,33 +13,28 @@ const BatchRequestsPage = () => {
     setResults([]);
     setError(null);
 
-    try {
-      const response = await fetch("/api/batch");
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+    await Sentry.startSpan(
+      {
+        name: "BatchRequestsPage",
+        op: "batch.requests",
+      },
+      async (span) => {
+        try {
+          const data = await api.getBatchResults();
+          setResults(data);
+          span?.setStatus('ok');
+        } catch (error) {
+          console.error("Error:", error);
+          span?.setStatus('error');
+          Sentry.captureException(error);
+          setError(
+            error instanceof Error ? error.message : "An unexpected error occurred"
+          );
+        } finally {
+          setLoading(false);
+        }
       }
-
-      const contentType = response.headers.get("content-type");
-      if (!contentType || !contentType.includes("application/json")) {
-        throw new Error(
-          `Invalid content type: ${
-            contentType || "none"
-          }. Expected application/json`
-        );
-      }
-
-      const data = await response.json();
-      setResults(data);
-    } catch (error) {
-      console.error("Error:", error);
-      Sentry.captureException(error);
-      setError(
-        error instanceof Error ? error.message : "An unexpected error occurred"
-      );
-    } finally {
-      setLoading(false);
-    }
+    );
   };
 
   return (

@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { Users } from "../components/Icons";
 import * as Sentry from "@sentry/react";
+import { api } from "../services/api";
 
 interface UserData {
   id: number;
@@ -20,35 +21,30 @@ const ClientComponentPage = () => {
 
   useEffect(() => {
     const fetchData = async () => {
-      try {
-        const response = await fetch("/api/custom-attributes");
-
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
+      await Sentry.startSpan(
+        {
+          name: "ClientComponentPage",
+          op: "user.attributes",
+        },
+        async (span) => {
+          try {
+            const result = await api.getUserAttributes();
+            setData(result);
+            span?.setStatus('ok');
+          } catch (error) {
+            console.error("Error:", error);
+            span?.setStatus('error');
+            Sentry.captureException(error);
+            setError(
+              error instanceof Error
+                ? error.message
+                : "An unexpected error occurred"
+            );
+          } finally {
+            setLoading(false);
+          }
         }
-
-        const contentType = response.headers.get("content-type");
-        if (!contentType || !contentType.includes("application/json")) {
-          throw new Error(
-            `Invalid content type: ${
-              contentType || "none"
-            }. Expected application/json`
-          );
-        }
-
-        const result = await response.json();
-        setData(result);
-      } catch (error) {
-        console.error("Error:", error);
-        Sentry.captureException(error);
-        setError(
-          error instanceof Error
-            ? error.message
-            : "An unexpected error occurred"
-        );
-      } finally {
-        setLoading(false);
-      }
+      );
     };
 
     fetchData();

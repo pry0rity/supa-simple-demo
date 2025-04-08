@@ -1,4 +1,3 @@
-import React from "react";
 import { Activity } from "../components/Icons";
 
 const HomePage = () => {

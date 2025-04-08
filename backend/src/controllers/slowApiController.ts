@@ -3,23 +3,20 @@ import * as Sentry from '@sentry/node';
 
 export const slowApiController = {
   getSlowResponse: async (req: Request, res: Response) => {
-    // Get the transaction that was created by Sentry.Handlers.tracingHandler()
-    const transaction = Sentry.getCurrentHub().getScope()?.getTransaction();
-    
     try {
-      // Simulate a slow API response
+      // Create a span for the waiting operation using modern span instrumentation
       const waitTime = 2000;
       
-      // Create a child span for the waiting operation
-      const waitSpan = transaction?.startChild({
-        op: 'timer',
-        description: 'Waiting period'
-      });
-      
-      await new Promise(resolve => setTimeout(resolve, waitTime));
-      
-      // Finish the wait span
-      waitSpan?.finish();
+      await Sentry.startSpan(
+        {
+          name: 'slow-api-wait',
+          op: 'timer',
+          description: 'Waiting period',
+        },
+        async () => {
+          await new Promise(resolve => setTimeout(resolve, waitTime));
+        }
+      );
       
       res.json({ message: "This response took 2 seconds to complete!" });
     } catch (error) {

@@ -1,4 +1,3 @@
-import React from "react";
 import { BrowserRouter as Router, Routes, Route, Link } from "react-router-dom";
 import {
   Activity,
@@ -19,14 +18,13 @@ import ServerComponentPage from "./pages/ServerComponentPage";
 import ClientComponentPage from "./pages/ClientComponentPage";
 
 import * as Sentry from "@sentry/react";
-import { BrowserTracing } from "@sentry/tracing";
 
 const SENTRY_DSN = import.meta.env.VITE_SENTRY_DSN;
 
 Sentry.init({
   dsn: SENTRY_DSN,
   integrations: [
-    new BrowserTracing(),
+    // Basic auto-instrumentation
     Sentry.browserTracingIntegration(),
     Sentry.replayIntegration({
       maskAllText: false,
