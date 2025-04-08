@@ -78,6 +78,46 @@ app.get('/api/db', async (req, res) => {
   }
 });
 
+app.get('/api/batch', async (req, res) => {
+  try {
+    const batchResults = [];
+    
+    // Process 3 batch items
+    for (let i = 1; i <= 3; i++) {
+      // Simulate processing time with some variance
+      const processingTime = 100 + Math.floor(Math.random() * 200);
+      await new Promise(resolve => setTimeout(resolve, processingTime));
+      batchResults.push(`Batch item ${i} processed in ${processingTime}ms`);
+    }
+    
+    res.json(batchResults);
+  } catch (error) {
+    Sentry.captureException(error);
+    res.status(500).json({ error: 'Failed to process batch requests' });
+  }
+});
+
+app.get('/api/user-attributes', async (req, res) => {
+  try {
+    // Simulated user data
+    const userData = {
+      id: 12345,
+      name: 'Test User',
+      email: 'test@example.com',
+      preferences: {
+        theme: 'dark',
+        notifications: true,
+        language: 'en-US',
+      }
+    };
+    
+    res.json(userData);
+  } catch (error) {
+    Sentry.captureException(error);
+    res.status(500).json({ error: 'Failed to get user attributes' });
+  }
+});
+
 // Test Sentry error reporting
 app.get('/debug-sentry', function mainHandler(req, res) {
   throw new Error('My first Sentry error!');

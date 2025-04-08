@@ -1,3 +1,3 @@
 #!/bin/bash
 cd backend
-node simple-server.js 
+node server.js
