@@ -70,8 +70,8 @@ npm run dev
 
 This demo implements Sentry with:
 
-- **Distributed Tracing**: Connects frontend and backend transactions
-- **Performance Monitoring**: Tracks API calls and database operations
+- **Distributed Tracing**: Connects frontend and backend traces with proper context propagation
+- **Performance Monitoring**: Tracks API calls and database operations through spans
 - **Error Tracking**: Captures and reports errors across the stack
 - **Profiling**: Measures performance metrics
 
@@ -79,7 +79,7 @@ This demo implements Sentry with:
 
 - **Slow API**: Tests tracing on deliberately slow endpoints
 - **Error Demo**: Demonstrates error tracking and reporting
-- **DB Query**: Shows database tracing and performance
+- **DB Query**: Shows database spans and performance monitoring
 - **Batch Requests**: Demonstrates trace propagation across multiple requests
 - **Server/Client Components**: Shows different rendering strategies
 
@@ -88,21 +88,21 @@ This demo implements Sentry with:
 ### Frontend (/src)
 - React application with Sentry integration
 - Uses `@sentry/react` for browser monitoring
-- Implements trace propagation in API requests
+- Implements trace context propagation in API requests
 
 ### Backend (/backend)
 - Express server with Sentry integration
 - Uses `@sentry/node` for server monitoring
-- Implements transaction and span creation for operations
-- Demonstrates custom context and instrumentation
+- Implements spans for operation monitoring
+- Demonstrates auto-instrumentation and custom spans
 
 ## Sentry Features Demonstrated
 
-1. **Transaction Creation**: Both automatic and manual transactions
-2. **Span Creation**: Child spans for detailed performance tracking
+1. **Auto-Instrumentation**: Automatic tracing for React and Express
+2. **Custom Spans**: Creating spans for detailed performance tracking
 3. **Error Reporting**: Integration with error boundaries
-4. **Custom Context**: Adding custom data to transactions and spans
-5. **Distributed Tracing**: Connecting frontend and backend traces
+4. **Custom Context**: Adding custom attributes to spans
+5. **Distributed Tracing**: Connecting frontend and backend traces through context propagation
 6. **Profiling**: Performance profiling integrated with traces
 
 ## Technologies Used
