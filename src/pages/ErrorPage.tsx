@@ -19,7 +19,7 @@ const ErrorPage = () => {
     <div className="max-w-2xl mx-auto">
       <div className="flex items-center mb-6">
         <AlertTriangle className="mr-2 text-red-600" />
-        <h2 className="text-2xl font-bold">Error Demo</h2>
+        <h2 className="text-2xl font-bold">Trigger Upstream Error</h2>
       </div>
 
       <div className="bg-white shadow rounded-lg p-6">

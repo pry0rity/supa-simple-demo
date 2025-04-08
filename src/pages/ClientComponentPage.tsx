@@ -71,10 +71,43 @@ const ClientComponentPage = () => {
           </div>
         ) : (
           <div className="space-y-4">
-            <h3 className="text-lg font-semibold">User Data</h3>
-            <pre className="bg-gray-50 p-4 rounded overflow-auto">
-              {JSON.stringify(data, null, 2)}
-            </pre>
+            {/* Formatted display */}
+            <div className="p-4 bg-teal-50 text-teal-700 rounded">
+              <h3 className="font-semibold mb-3">User Profile</h3>
+              
+              <div className="mb-5 flex items-center">
+                <div className="w-12 h-12 rounded-full bg-teal-500 text-white flex items-center justify-center font-bold mr-4">
+                  {data?.name?.charAt(0) || "U"}
+                </div>
+                <div>
+                  <div className="font-medium text-lg">{data?.name}</div>
+                  <div className="text-sm text-teal-600">{data?.email}</div>
+                </div>
+              </div>
+              
+              <div className="border-t border-teal-100 pt-3">
+                <h4 className="text-sm font-medium mb-2">User Preferences</h4>
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="text-sm">
+                    <span className="text-teal-500">Theme:</span> {data?.preferences?.theme}
+                  </div>
+                  <div className="text-sm">
+                    <span className="text-teal-500">Language:</span> {data?.preferences?.language}
+                  </div>
+                  <div className="text-sm col-span-2">
+                    <span className="text-teal-500">Notifications:</span> {data?.preferences?.notifications ? "Enabled" : "Disabled"}
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            {/* Raw JSON */}
+            <div>
+              <h3 className="font-semibold mb-2 text-sm text-gray-600">Raw JSON:</h3>
+              <pre className="bg-gray-50 p-3 rounded text-sm overflow-auto border border-gray-200">
+                {JSON.stringify(data, null, 2)}
+              </pre>
+            </div>
           </div>
         )}
       </div>

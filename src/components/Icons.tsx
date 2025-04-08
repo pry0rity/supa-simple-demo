@@ -4,6 +4,7 @@ import * as Icons from "lucide-react";
 export const {
   Activity,
   AlertTriangle,
+  AlertOctagon,
   Database,
   Layers,
   Server,
@@ -12,4 +13,6 @@ export const {
   Home,
   Clock,
   RefreshCw,
+  Globe,
+  MessageCircle,
 } = Icons;

@@ -3,16 +3,23 @@ import { Clock, RefreshCw } from "../components/Icons";
 import * as Sentry from "@sentry/react";
 import { api } from "../services/api";
 
+interface SlowApiResponse {
+  message: string;
+  [key: string]: unknown; // For any additional fields that might be present
+}
+
 const SlowApiPage = () => {
   const [loading, setLoading] = useState(false);
-  const [response, setResponse] = useState<string | null>(null);
+  const [responseData, setResponseData] = useState<SlowApiResponse | null>(null);
+  const [responseTime, setResponseTime] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isFixing, setIsFixing] = useState(false);
   const [showFixButton, setShowFixButton] = useState(false);
 
   const makeSlowRequest = async (timeout: number = 3) => {
     setLoading(true);
-    setResponse(null);
+    setResponseData(null);
+    setResponseTime(null);
     setError(null);
     setShowFixButton(false);
 
@@ -23,10 +30,15 @@ const SlowApiPage = () => {
         }, timeout * 1000);
       });
 
+      const startTime = performance.now();
       const requestPromise = api.getSlowResponse();
 
       const data = await Promise.race([requestPromise, timeoutPromise]);
-      setResponse(data.message);
+      const endTime = performance.now();
+      const elapsed = endTime - startTime;
+      
+      setResponseData(data);
+      setResponseTime(Math.round(elapsed));
     } catch (error) {
       console.error("Error:", error);
       Sentry.captureException(error);
@@ -40,12 +52,18 @@ const SlowApiPage = () => {
   const fixTimeout = async () => {
     setIsFixing(true);
     setError(null);
-    setResponse(null);
+    setResponseData(null);
+    setResponseTime(null);
     setShowFixButton(false);
 
     try {
+      const startTime = performance.now();
       const data = await api.getSlowResponse();
-      setResponse(data.message);
+      const endTime = performance.now();
+      const elapsed = endTime - startTime;
+      
+      setResponseData(data);
+      setResponseTime(Math.round(elapsed));
     } catch (error) {
       console.error("Error:", error);
       Sentry.captureException(error);
@@ -60,7 +78,7 @@ const SlowApiPage = () => {
     <div className="max-w-2xl mx-auto">
       <div className="flex items-center mb-6">
         <Clock className="mr-2 text-blue-600" />
-        <h2 className="text-2xl font-bold">Slow API Demo</h2>
+        <h2 className="text-2xl font-bold">Local Server API Demo</h2>
       </div>
 
       <div className="bg-white shadow rounded-lg p-6">
@@ -91,9 +109,51 @@ const SlowApiPage = () => {
           )}
         </div>
 
-        {response && (
-          <div className="mt-4 p-4 bg-green-50 text-green-700 rounded">
-            {response}
+        {responseData && (
+          <div className="mt-4 space-y-4">
+            {/* Formatted display */}
+            <div className="p-4 bg-green-50 text-green-700 rounded">
+              <h3 className="font-semibold mb-2">Response:</h3>
+              <div className="mb-3">{responseData.message}</div>
+              
+              {responseTime && (
+                <div className="flex items-center space-x-2 mb-1">
+                  <div className="flex-1 bg-gray-200 rounded-full h-2">
+                    <div
+                      className="bg-blue-500 h-2 rounded-full"
+                      style={{ width: `${Math.min(100, (responseTime / 3000) * 100)}%` }}
+                    ></div>
+                  </div>
+                  <div className="text-sm font-medium">
+                    {(responseTime / 1000).toFixed(2)}s
+                  </div>
+                </div>
+              )}
+              
+              <div className="text-xs text-green-600 mt-1">
+                {responseTime 
+                  ? `Exact response time: ${responseTime}ms` 
+                  : 'Response time not measured'}
+              </div>
+            </div>
+            
+            {/* Raw JSON */}
+            <div>
+              <h3 className="font-semibold mb-2 text-sm text-gray-600">Raw JSON:</h3>
+              <pre className="bg-gray-50 p-3 rounded text-sm overflow-auto border border-gray-200">
+                {JSON.stringify(
+                  { 
+                    ...responseData,
+                    _metadata: {
+                      responseTime: responseTime ? `${responseTime}ms` : 'Not measured',
+                      timestamp: new Date().toISOString()
+                    }
+                  }, 
+                  null, 
+                  2
+                )}
+              </pre>
+            </div>
           </div>
         )}
 
