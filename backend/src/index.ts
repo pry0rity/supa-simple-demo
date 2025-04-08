@@ -15,7 +15,7 @@ const app = express();
 const port = process.env.PORT || 3000;
 
 // Initialize Sentry (must be done before other middleware)
-const { requestHandler, tracingHandler, errorHandler, sentryInstance } = initSentry(app);
+const { requestHandler, tracingHandler, errorHandler } = initSentry(app);
 
 // Sentry request handler must be the first middleware
 app.use(requestHandler);
@@ -40,7 +40,8 @@ app.get('/health', (req, res) => {
 });
 
 // Test Sentry endpoint
-app.get('/debug-sentry', (req, res) => {
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+app.get('/debug-sentry', (_req, _res) => {
   throw new Error('My first Sentry error!');
 });
 
@@ -48,7 +49,8 @@ app.get('/debug-sentry', (req, res) => {
 app.use(errorHandler);
 
 // Regular error handling middleware
-app.use((err: Error, req: express.Request, res: express.Response, next: express.NextFunction) => {
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+app.use((err: Error, req: express.Request, res: express.Response, _next: express.NextFunction) => {
   console.error(err.stack);
   res.status(500).json({ error: 'Something went wrong!' });
 });
