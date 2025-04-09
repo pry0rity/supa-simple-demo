@@ -48,16 +48,11 @@ export const api = {
   },
   
   // N+1 Query Demo methods
-  getJsonPlaceholderUsers: async () => {
-    return simpleFetch('https://jsonplaceholder.typicode.com/users');
+  getUsersWithPosts: async () => {
+    return simpleFetch(`${API_BASE_URL}/users-with-posts`);
   },
   
-  getJsonPlaceholderUserPosts: async (userId: number) => {
-    return simpleFetch(`https://jsonplaceholder.typicode.com/posts?userId=${userId}`);
-  },
-  
-  getJsonPlaceholderPostsForUsers: async (userIds: number[]) => {
-    const idsParam = userIds.map(id => `userId=${id}`).join('&');
-    return simpleFetch(`https://jsonplaceholder.typicode.com/posts?${idsParam}`);
+  getUsersWithPostsOptimized: async () => {
+    return simpleFetch(`${API_BASE_URL}/users-with-posts-optimized`);
   }
 };
