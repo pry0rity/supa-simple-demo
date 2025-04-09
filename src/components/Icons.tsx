@@ -8,7 +8,6 @@ export const {
   Database,
   Layers,
   Server,
-  Cpu,
   Users,
   Home,
   Clock,

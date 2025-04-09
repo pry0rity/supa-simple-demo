@@ -5,7 +5,6 @@ import {
   Database,
   Layers,
   Server,
-  Cpu,
   Users,
   Home,
   Globe,
@@ -50,9 +49,6 @@ export function AppNavigation() {
       </NavLink>
       <NavLink to="/nplus1" icon={AlertOctagon}>
         N+1 Query Problem
-      </NavLink>
-      <NavLink to="/server-component" icon={Cpu}>
-        Server Component
       </NavLink>
       <NavLink to="/client-component" icon={Users}>
         Client Component

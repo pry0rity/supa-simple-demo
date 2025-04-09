@@ -6,20 +6,29 @@ import { api } from "../services/api";
 interface Post {
   id: number;
   title: string;
-  content: string;
-  user_id: number;
+  body: string;
+  userId: number;
 }
 
-interface UserWithPosts {
+interface Comment {
   id: number;
+  postId: number;
   name: string;
   email: string;
-  posts: Post[];
+  body: string;
+}
+
+interface PostWithComments {
+  id: number;
+  title: string;
+  body: string;
+  userId: number;
+  comments: Comment[];
 }
 
 const NPlusOneQueryPage = () => {
   const [loading, setLoading] = useState(false);
-  const [results, setResults] = useState<UserWithPosts[]>([]);
+  const [results, setResults] = useState<PostWithComments[]>([]);
   const [queryCount, setQueryCount] = useState(0);
   const [totalTime, setTotalTime] = useState(0);
   const [isOptimized, setIsOptimized] = useState(false);
@@ -44,17 +53,27 @@ const NPlusOneQueryPage = () => {
       async () => {
         try {
           console.log("Fetching data with N+1 pattern...");
-          const data = await api.getUsersWithPosts();
-          console.log("Received data:", data);
+
+          // First, fetch all post IDs (1 query)
+          const postIds = await api.getPostIds();
+          console.log("Received post IDs:", postIds);
+
+          // Then, for each post ID:
+          // 1. Fetch the post details (N queries)
+          // 2. Fetch the post's comments (N queries)
+          const postsWithComments = await Promise.all(
+            postIds.map(async (postId: number) => {
+              const post = await api.getPost(postId);
+              const comments = await api.getPostComments(postId);
+              return { ...post, comments };
+            })
+          );
 
           const endTime = performance.now();
 
-          if (!Array.isArray(data)) {
-            throw new Error("Expected array of users with posts");
-          }
-
-          setResults(data);
-          setQueryCount(data.length + 1); // 1 for users query + N for posts queries
+          setResults(postsWithComments);
+          // 1 query for post IDs + N queries for posts + N queries for comments
+          setQueryCount(1 + postIds.length * 2);
           setTotalTime(Math.round(endTime - startTime));
         } catch (error) {
           console.error("Error in N+1 demo:", error);
@@ -89,11 +108,34 @@ const NPlusOneQueryPage = () => {
       },
       async () => {
         try {
-          const data = await api.getUsersWithPostsOptimized();
+          // Fetch posts and comments in parallel
+          const [posts, allComments] = await Promise.all([
+            api.getPosts(),
+            api.getAllComments(),
+          ]);
+
+          // Group comments by postId
+          const commentsByPostId = allComments.reduce(
+            (acc: Record<number, Comment[]>, comment: Comment) => {
+              if (!acc[comment.postId]) {
+                acc[comment.postId] = [];
+              }
+              acc[comment.postId].push(comment);
+              return acc;
+            },
+            {} as Record<number, Comment[]>
+          );
+
+          // Combine posts with their comments
+          const postsWithComments = posts.map((post: Post) => ({
+            ...post,
+            comments: commentsByPostId[post.id] || [],
+          }));
+
           const endTime = performance.now();
 
-          setResults(data);
-          setQueryCount(1); // Only one optimized query
+          setResults(postsWithComments);
+          setQueryCount(2); // Only two queries: one for posts, one for all comments
           setTotalTime(Math.round(endTime - startTime));
         } catch (error) {
           console.error("Error:", error);
@@ -121,9 +163,16 @@ const NPlusOneQueryPage = () => {
         <div className="mb-6">
           <p className="text-gray-700 mb-4">
             The N+1 query problem occurs when fetching a list of items and their
-            related data. Instead of using joins or batch queries, code makes 1
-            query to get the main entities plus N additional queries (one for
-            each entity) to get related data.
+            related data. In this example, we make:
+          </p>
+          <ul className="list-disc pl-5 mb-4 text-gray-700">
+            <li>1 query to get all post IDs</li>
+            <li>N queries to fetch each post's details</li>
+            <li>N queries to fetch each post's comments</li>
+          </ul>
+          <p className="text-gray-700 mb-4">
+            The optimized version uses just 2 queries total to fetch the same
+            data.
           </p>
 
           <div className="flex flex-wrap gap-3">
@@ -189,30 +238,45 @@ const NPlusOneQueryPage = () => {
                 </div>
               </div>
 
-              {results.map((result) => (
-                <div
-                  key={result.id}
-                  className="bg-white rounded p-4 mb-4 last:mb-0"
-                >
-                  <div className="mb-2">
-                    <h4 className="font-medium">{result.name}</h4>
-                    <p className="text-sm opacity-75">{result.email}</p>
-                  </div>
-                  <div className="space-y-2">
-                    <h5 className="text-sm font-medium">
-                      Posts ({result.posts.length})
-                    </h5>
-                    {result.posts.map((post) => (
-                      <div
-                        key={post.id}
-                        className="pl-4 border-l-2 border-gray-200"
-                      >
-                        <p className="text-sm">{post.title}</p>
+              <div className="space-y-4">
+                {results.map((post) => (
+                  <div
+                    key={post.id}
+                    className="bg-white rounded p-4 mb-4 last:mb-0 border border-gray-200"
+                  >
+                    <div className="mb-3">
+                      <h4 className="font-medium text-lg">{post.title}</h4>
+                      <p className="text-gray-600">{post.body}</p>
+                    </div>
+
+                    <div className="mt-4">
+                      <h5 className="font-medium text-sm text-gray-500 mb-2">
+                        Comments ({post.comments.length})
+                      </h5>
+                      <div className="space-y-2">
+                        {post.comments.map((comment) => (
+                          <div
+                            key={comment.id}
+                            className="bg-gray-50 p-3 rounded"
+                          >
+                            <div className="flex items-center gap-2 mb-1">
+                              <span className="font-medium text-sm">
+                                {comment.name}
+                              </span>
+                              <span className="text-gray-500 text-sm">
+                                ({comment.email})
+                              </span>
+                            </div>
+                            <p className="text-sm text-gray-600">
+                              {comment.body}
+                            </p>
+                          </div>
+                        ))}
                       </div>
-                    ))}
+                    </div>
                   </div>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
           </div>
         )}

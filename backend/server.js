@@ -6,9 +6,10 @@ const morgan = require('morgan');
 const Sentry = require('@sentry/node');
 const { ProfilingIntegration } = require('@sentry/profiling-node');
 const { createClient } = require('@supabase/supabase-js');
+const fetch = require('node-fetch');
 
 const app = express();
-const port = process.env.PORT || 3000;
+const port = process.env.PORT || 3001;
 
 // Debug: Log environment variables
 console.log('Environment variables:', {
@@ -274,6 +275,29 @@ app.get('/api/users-with-posts-optimized', async (req, res) => {
     Sentry.captureException(error);
     res.status(500).json({ 
       error: 'Failed to fetch users with posts',
+      details: error.message 
+    });
+  }
+});
+
+// Posts endpoint that fetches from JSONPlaceholder
+app.get('/api/posts', async (req, res) => {
+  try {
+    console.log('Fetching posts from JSONPlaceholder...');
+    const response = await fetch('https://jsonplaceholder.typicode.com/posts');
+    
+    if (!response.ok) {
+      throw new Error(`JSONPlaceholder API error: ${response.status}`);
+    }
+
+    const posts = await response.json();
+    console.log(`Successfully fetched ${posts.length} posts from JSONPlaceholder`);
+    res.json(posts);
+  } catch (error) {
+    console.error('Posts fetch error:', error);
+    Sentry.captureException(error);
+    res.status(500).json({ 
+      error: 'Failed to fetch posts',
       details: error.message 
     });
   }

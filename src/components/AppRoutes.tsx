@@ -6,7 +6,6 @@ import ErrorPage from "../pages/ErrorPage";
 import DbQueryPage from "../pages/DbQueryPage";
 import BatchRequestsPage from "../pages/BatchRequestsPage";
 import NPlusOneQueryPage from "../pages/NPlusOneQueryPage";
-import ServerComponentPage from "../pages/ServerComponentPage";
 import ClientComponentPage from "../pages/ClientComponentPage";
 import ThirdPartyApiPage from "../pages/ThirdPartyApiPage";
 
@@ -19,7 +18,6 @@ export function AppRoutesComponent() {
       <Route path="/db-query" element={<DbQueryPage />} />
       <Route path="/batch-requests" element={<BatchRequestsPage />} />
       <Route path="/nplus1" element={<NPlusOneQueryPage />} />
-      <Route path="/server-component" element={<ServerComponentPage />} />
       <Route path="/client-component" element={<ClientComponentPage />} />
       <Route path="/third-party-api" element={<ThirdPartyApiPage />} />
     </Routes>

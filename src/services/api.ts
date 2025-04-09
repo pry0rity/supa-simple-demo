@@ -54,5 +54,28 @@ export const api = {
   
   getUsersWithPostsOptimized: async () => {
     return simpleFetch(`${API_BASE_URL}/users-with-posts-optimized`);
+  },
+
+  // Add new methods for posts and comments
+  getPostIds: async () => {
+    // Get all posts but only return their IDs
+    const posts = await simpleFetch('https://jsonplaceholder.typicode.com/posts');
+    return posts.map((post: { id: number }) => post.id);
+  },
+
+  getPost: async (postId: number) => {
+    return simpleFetch(`https://jsonplaceholder.typicode.com/posts/${postId}`);
+  },
+
+  getPosts: async () => {
+    return simpleFetch(`${API_BASE_URL}/posts`);
+  },
+
+  getPostComments: async (postId: number) => {
+    return simpleFetch(`https://jsonplaceholder.typicode.com/posts/${postId}/comments`);
+  },
+
+  getAllComments: async () => {
+    return simpleFetch('https://jsonplaceholder.typicode.com/comments');
   }
 };
