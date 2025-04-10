@@ -26,7 +26,7 @@ interface QueryStats {
   isOptimized?: boolean;
 }
 
-export function NPlusOneQueryPage() {
+export function NPlusOneQueryDebugPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [posts, setPosts] = useState<Post[]>([]);
@@ -43,49 +43,39 @@ export function NPlusOneQueryPage() {
 
       const startTotalTime = performance.now();
 
-      // First, get 10 posts
+      // First, get post 1
       const startPostsQuery = performance.now();
-      const allPosts = await api.getPosts();
+      const post = await api.getExternalPost(1);
       const postsQueryTime = performance.now() - startPostsQuery;
-      const firstTenPosts = allPosts.slice(0, 10);
+
+      // Create an array of 10 copies of the same post
+      const repeatedPosts = Array(10).fill({ ...post });
 
       let postsWithComments: Post[];
       const commentQueryTimes: { postId: number; time: number }[] = [];
 
       if (optimized) {
-        // Fetch all comments in a single query
+        // Fetch comments once and reuse
         const startCommentQuery = performance.now();
-        const allComments = await api.getAllComments();
+        const comments = await api.getExternalComments(1);
         const commentQueryTime = performance.now() - startCommentQuery;
 
-        // Group comments by post ID
-        const commentsByPost = allComments.reduce(
-          (acc: { [key: number]: Comment[] }, comment: Comment) => {
-            if (!acc[comment.postId]) {
-              acc[comment.postId] = [];
-            }
-            acc[comment.postId].push(comment);
-            return acc;
-          },
-          {} as { [key: number]: Comment[] }
-        );
-
-        // Match comments with their posts
-        postsWithComments = firstTenPosts.map((post: Post) => ({
+        // Use the same comments for all posts
+        postsWithComments = repeatedPosts.map((post: Post) => ({
           ...post,
-          comments: commentsByPost[post.id] || [],
+          comments: comments,
         }));
 
-        commentQueryTimes.push({ postId: 0, time: commentQueryTime });
+        commentQueryTimes.push({ postId: 1, time: commentQueryTime });
         setRequestCount(1); // Only one query for all comments
       } else {
-        // Original N+1 query approach
+        // Original N+1 query approach - fetch the same comments multiple times
         postsWithComments = await Promise.all(
-          firstTenPosts.map(async (post: Post) => {
+          repeatedPosts.map(async (post: Post) => {
             const startCommentQuery = performance.now();
-            const comments = await api.getPostComments(post.id);
+            const comments = await api.getExternalComments(1);
             const commentQueryTime = performance.now() - startCommentQuery;
-            commentQueryTimes.push({ postId: post.id, time: commentQueryTime });
+            commentQueryTimes.push({ postId: 1, time: commentQueryTime });
             setRequestCount((prev) => prev + 1);
             return { ...post, comments };
           })
@@ -117,18 +107,19 @@ export function NPlusOneQueryPage() {
     <div className="max-w-4xl mx-auto">
       <div className="flex items-center mb-6">
         <AlertOctagon className="mr-2 text-red-600" />
-        <h2 className="text-2xl font-bold">N+1 Query Problem Demo</h2>
+        <h2 className="text-2xl font-bold">
+          N+1 Query Debug Demo (Same Endpoint)
+        </h2>
       </div>
 
       <div className="bg-white shadow rounded-lg p-6">
         <div className="mb-6">
           <p className="text-gray-700 mb-4">
-            This demo triggers an N+1 query problem by fetching 20 posts and
-            then making separate requests for each post's comments. This is a
-            common performance anti-pattern where we make N additional queries
-            (one per post) after our initial query. Click the "Optimized Query"
-            button to see how this can be fixed by fetching all comments in a
-            single query.
+            This demo triggers an N+1 query problem by fetching the same post's
+            comments 10 times. This helps debug N+1 detection by ensuring we're
+            hitting the exact same endpoint repeatedly. Click the "Optimized
+            Query" button to see how this can be fixed by reusing the comment
+            data.
           </p>
 
           <div className="space-x-4">
@@ -160,7 +151,7 @@ export function NPlusOneQueryPage() {
                 <p>
                   Total Queries:{" "}
                   <span className="font-medium">{requestCount + 1}</span> (1 for
-                  posts + {requestCount} for comments)
+                  post + {requestCount} for comments)
                 </p>
                 <p>
                   Total Time:{" "}
@@ -202,8 +193,8 @@ export function NPlusOneQueryPage() {
           <div>
             <h3 className="font-medium mb-4">Posts and Their Comments:</h3>
             <div className="space-y-6">
-              {posts.map((post) => (
-                <div key={post.id} className="border rounded-lg p-4 bg-gray-50">
+              {posts.map((post, index) => (
+                <div key={index} className="border rounded-lg p-4 bg-gray-50">
                   <h4 className="font-medium text-lg mb-2">{post.title}</h4>
                   <p className="text-gray-600 mb-4">{post.body}</p>
                   <div className="pl-4 border-l-2 border-gray-200">

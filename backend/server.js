@@ -303,6 +303,55 @@ app.get('/api/posts', async (req, res) => {
   }
 });
 
+// Comments endpoint for a specific post
+app.get('/api/posts/:postId/comments', async (req, res) => {
+  try {
+    const postId = req.params.postId;
+    console.log(`Fetching comments for post ${postId} from JSONPlaceholder...`);
+    
+    const response = await fetch(`https://jsonplaceholder.typicode.com/posts/${postId}/comments`);
+    
+    if (!response.ok) {
+      throw new Error(`JSONPlaceholder API error: ${response.status}`);
+    }
+
+    const comments = await response.json();
+    console.log(`Successfully fetched ${comments.length} comments for post ${postId}`);
+    res.json(comments);
+  } catch (error) {
+    console.error('Comments fetch error:', error);
+    Sentry.captureException(error);
+    res.status(500).json({ 
+      error: 'Failed to fetch comments',
+      details: error.message 
+    });
+  }
+});
+
+// All comments endpoint
+app.get('/api/comments', async (req, res) => {
+  try {
+    console.log('Fetching all comments from JSONPlaceholder...');
+    
+    const response = await fetch('https://jsonplaceholder.typicode.com/comments');
+    
+    if (!response.ok) {
+      throw new Error(`JSONPlaceholder API error: ${response.status}`);
+    }
+
+    const comments = await response.json();
+    console.log(`Successfully fetched ${comments.length} comments`);
+    res.json(comments);
+  } catch (error) {
+    console.error('Comments fetch error:', error);
+    Sentry.captureException(error);
+    res.status(500).json({ 
+      error: 'Failed to fetch comments',
+      details: error.message 
+    });
+  }
+});
+
 // Health check endpoint
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok' });

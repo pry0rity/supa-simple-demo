@@ -30,7 +30,11 @@ Sentry.init({
   replaysSessionSampleRate: 1.0, // Record all sessions
   replaysOnErrorSampleRate: 1.0, // Record all sessions with errors
   environment: "development",
-  tracePropagationTargets: ["localhost", /^\/api\//],
+  tracePropagationTargets: [
+    "localhost",
+    /^\/api\//,
+    "jsonplaceholder.typicode.com",
+  ],
 });
 
 // Test replay functionality

@@ -50,6 +50,9 @@ export function AppNavigation() {
       <NavLink to="/nplus1" icon={AlertOctagon}>
         N+1 Query Problem
       </NavLink>
+      <NavLink to="/nplus1-debug" icon={AlertOctagon}>
+        N+1 Query Debug
+      </NavLink>
       <NavLink to="/client-component" icon={Users}>
         Client Component
       </NavLink>
