@@ -61,6 +61,8 @@ npm run dev
 ### Start both simultaneously
 
 ```bash
+npm run dev:full
+# or
 ./start-app.sh
 ```
 
