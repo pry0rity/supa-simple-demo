@@ -3,20 +3,31 @@ import * as Sentry from '@sentry/react';
 const API_BASE_URL = 'http://localhost:3000/api';
 
 // Simplified fetch utility - Sentry automatically instruments fetch API calls
-async function simpleFetch(url: string, options?: RequestInit) {
-  try {
-    // Fetch with standard options. Sentry auto-instruments network requests
-    const response = await fetch(url, options);
-    
-    // Parse and return response
-    return await response.json();
-  } catch (error) {
-    // Capture the error with Sentry (auto-instrumentation will track the failed request)
-    Sentry.captureException(error);
-    
-    // Re-throw the error
-    throw error;
-  }
+async function simpleFetch(url: string, options?: RequestInit) { 
+  return Sentry.startSpan(
+    {
+      name: `fetch.${url}`,
+      op: 'http.client',
+      description: `Fetch request to ${url}`,
+      // parentSpanId: parentSpan?.spanContext().spanId,
+      // traceId: parentSpan?.spanContext().traceId,
+    },
+    async () => {
+      try {
+        // Fetch with standard options. Sentry auto-instruments network requests
+        const response = await fetch(url, options);
+        
+        // Parse and return response
+        return await response.json();
+      } catch (error) {
+        // Capture the error with Sentry (auto-instrumentation will track the failed request)
+        Sentry.captureException(error);
+        
+        // Re-throw the error
+        throw error;
+      }
+    }
+  );
 }
 
 export const api = {
