@@ -25,7 +25,7 @@ Sentry.init({
     }),
   ],
   // Performance Monitoring
-  tracesSampleRate: 1.0,
+  tracesSampleRate: 0,
   // Session Replay
   replaysSessionSampleRate: 1.0, // Record all sessions
   replaysOnErrorSampleRate: 1.0, // Record all sessions with errors

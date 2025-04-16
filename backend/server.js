@@ -95,7 +95,7 @@ Sentry.init({
     new ProfilingIntegration(),
   ],
   // Set tracesSampleRate to 1.0 for development, lower in production
-  tracesSampleRate: 1.0,
+  tracesSampleRate: 0.0,
   // Set profilesSampleRate to 1.0 for development, lower in production
   profilesSampleRate: 1.0,
 });

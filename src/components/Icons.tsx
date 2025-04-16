@@ -15,4 +15,6 @@ export const {
   RefreshCw,
   Globe,
   MessageCircle,
+  ChevronLeft,
+  ChevronRight,
 } = Icons;
