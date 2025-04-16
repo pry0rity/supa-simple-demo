@@ -2,25 +2,48 @@ import * as Sentry from '@sentry/react';
 
 const API_BASE_URL = 'http://localhost:3000/api';
 
-// Simplified fetch utility - Sentry automatically instruments fetch API calls
+// Simplified fetch utility with better trace context propagation
 async function simpleFetch(url: string, options?: RequestInit) { 
   return Sentry.startSpan(
     {
-      name: `fetch.${url}`,
+      name: `fetch.${url.split('?')[0]}`, // Remove query params from span name for cleaner display
       op: 'http.client',
       description: `Fetch request to ${url}`,
-      // parentSpanId: parentSpan?.spanContext().spanId,
-      // traceId: parentSpan?.spanContext().traceId,
     },
-    async () => {
+    async (span) => {
       try {
-        // Fetch with standard options. Sentry auto-instruments network requests
-        const response = await fetch(url, options);
+        // Create headers if they don't exist
+        const headers = options?.headers || {};
+        
+        // Create a modified options object with Sentry trace headers
+        const tracedOptions = {
+          ...options,
+          headers: {
+            ...headers,
+            // Add Sentry trace propagation header
+            'sentry-trace': span?.toTraceparent() || ''
+          }
+        };
+        
+        // Record span start time for more accurate timing
+        const startTime = performance.now();
+        
+        // Make the fetch request with trace context
+        const response = await fetch(url, tracedOptions);
+        
+        // Record timing data
+        span?.setData('response_time_ms', Math.round(performance.now() - startTime));
+        span?.setData('status_code', response.status);
+        span?.setStatus(response.ok ? 'ok' : 'error');
         
         // Parse and return response
         return await response.json();
       } catch (error) {
-        // Capture the error with Sentry (auto-instrumentation will track the failed request)
+        // Mark span as error and capture details
+        span?.setStatus('error');
+        span?.setData('error', error instanceof Error ? error.message : String(error));
+        
+        // Capture the error with Sentry
         Sentry.captureException(error);
         
         // Re-throw the error

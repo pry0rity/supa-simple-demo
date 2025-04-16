@@ -41,11 +41,43 @@ const ErrorPage = () => {
 
   const handleServerError = async () => {
     setLoading(true);
+    
+    // Use a Sentry transaction to properly track this entire operation
+    const transaction = Sentry.startTransaction({
+      name: 'trigger-server-error',
+      op: 'ui.action'
+    });
+    
     try {
-      const response = await fetch('http://localhost:3000/api/debug-sentry');
+      // Create a child span for the fetch operation with proper timing
+      const fetchSpan = transaction.startChild({
+        op: 'http.client',
+        description: 'Fetch to debug-sentry endpoint'
+      });
+      
+      // Get Sentry trace headers for this transaction to link frontend and backend
+      const sentryTrace = fetchSpan.toTraceparent();
+      
+      // Add these headers to the fetch request for proper trace context propagation
+      const response = await fetch('http://localhost:3000/api/debug-sentry', {
+        headers: {
+          'sentry-trace': sentryTrace
+        }
+      });
+      
+      // Finish the fetch span with status info
+      fetchSpan.setData('status', response.status);
+      fetchSpan.setStatus(response.ok ? 'ok' : 'error');
+      fetchSpan.finish();
       
       // If the server returns a 500 error, it will still have a response body with error details
       if (!response.ok) {
+        // Start a child span for processing the error response
+        const processSpan = transaction.startChild({
+          op: 'process.error',
+          description: 'Process server error response'
+        });
+        
         const errorData = await response.json();
         
         // Create a detailed error message from the server response
@@ -65,11 +97,17 @@ const ErrorPage = () => {
         
         console.error("Server returned error:", errorData);
         
+        // Add server error details to the span
+        processSpan.setData('error_data', errorData);
+        processSpan.finish();
+        
         // Report to Sentry with context
         Sentry.configureScope(scope => {
           scope.setContext("server_error", errorData);
           if (errorData.sentry?.eventId) {
             scope.setTag("server_event_id", errorData.sentry.eventId);
+            // Link to the server-side event
+            scope.setTag("linked_event", errorData.sentry.eventId);
           }
         });
         
@@ -87,7 +125,12 @@ const ErrorPage = () => {
       
       // Report to Sentry
       Sentry.captureException(err);
+      
+      // Set transaction status to error
+      transaction.setStatus('error');
     } finally {
+      // Complete the transaction
+      transaction.finish();
       setLoading(false);
     }
   };

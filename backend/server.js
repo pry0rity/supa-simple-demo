@@ -4,12 +4,76 @@ const express = require('express');
 const cors = require('cors');
 const morgan = require('morgan');
 const Sentry = require('@sentry/node');
-const { ProfilingIntegration } = require('@sentry/profiling-node');
 const { createClient } = require('@supabase/supabase-js');
 const fetch = require('node-fetch');
 
 const app = express();
 const port = process.env.PORT || 3001;
+
+/**
+ * Wrapper for API route handlers that automatically creates a Sentry span
+ * Similar to simpleFetch in the frontend
+ * 
+ * @param {string} name - Name of the operation for Sentry span
+ * @param {Function} handlerFn - The async route handler function to wrap
+ * @returns {Function} Express route handler with Sentry instrumentation
+ */
+const wrapApiHandler = (name, handlerFn) => {
+  return async (req, res, next) => {
+    try {
+      // If the handler has already sent a response, we don't want to continue
+      let responseSent = false;
+      
+      // Save the original res.json, res.send, etc. methods
+      const originalJson = res.json;
+      const originalSend = res.send;
+      const originalEnd = res.end;
+      
+      // Override the methods to track when a response is sent
+      res.json = function(data) {
+        responseSent = true;
+        return originalJson.call(this, data);
+      };
+      
+      res.send = function(data) {
+        responseSent = true;
+        return originalSend.call(this, data);
+      };
+      
+      res.end = function(data) {
+        responseSent = true;
+        return originalEnd.call(this, data);
+      };
+      
+      // Execute the handler inside a Sentry span
+      await Sentry.startSpan(
+        {
+          name: `api.${name}`,
+          op: 'http.server',
+          description: `API handler for ${req.method} ${req.path}`,
+        },
+        async () => {
+          // Wait for the handler function to execute
+          await handlerFn(req, res, next);
+        }
+      );
+      
+      // Only call next if no response was sent (helps with error middleware)
+      if (!responseSent && next) {
+        next();
+      }
+    } catch (error) {
+      // If an error occurs that wasn't handled by the handler function
+      console.error(`Error in API handler ${name}:`, error);
+      Sentry.captureException(error);
+      
+      // Only pass to next if the response hasn't been sent yet
+      if (!res.headersSent && next) {
+        next(error);
+      }
+    }
+  };
+};
 
 // Debug: Log environment variables
 console.log('Environment variables:', {
@@ -63,166 +127,118 @@ try {
 }
 
 // Routes
-app.get('/api/slow', async (req, res) => {
-  try {
-    // Simulate a slow API response
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    res.json({ message: "This response took 2 seconds to complete!" });
-  } catch (error) {
-    Sentry.captureException(error);
-    res.status(500).json({ error: 'Something went wrong' });
+app.get('/api/slow', wrapApiHandler('slow', async (req, res) => {
+  // Simulate a slow API response
+  await new Promise(resolve => setTimeout(resolve, 2000));
+  res.json({ message: "This response took 2 seconds to complete!" });
+}));
+
+app.get('/api/db', wrapApiHandler('db.users', async (req, res) => {
+  if (!supabase) {
+    return res.status(503).json({ error: 'Database connection not available' });
   }
-});
-
-app.get('/api/db', async (req, res) => {
-  try {
-    if (!supabase) {
-      return res.status(503).json({ error: 'Database connection not available' });
-    }
-    // Query the database for users
-    console.log('Querying Supabase users table...');
-    const { data: users, error } = await supabase
-      .from('users')
-      .select('id, name, email, created_at')
-      .order('created_at', { ascending: false });
-    
-    console.log('Supabase query result:', { users, error });
-    
-    if (error) {
-      throw error;
-    }
-    
-    res.json(users);
-  } catch (error) {
-    console.error('Database error:', error);
-    Sentry.captureException(error);
-    res.status(500).json({ error: 'Failed to fetch users' });
+  // Query the database for users
+  console.log('Querying Supabase users table...');
+  const { data: users, error } = await supabase
+    .from('users')
+    .select('id, name, email, created_at')
+    .order('created_at', { ascending: false });
+  
+  console.log('Supabase query result:', { users, error });
+  
+  if (error) {
+    throw error;
   }
-});
+  
+  res.json(users);
+}));
 
-app.get('/api/batch', async (req, res) => {
-  try {
-    const batchResults = [];
+app.get('/api/batch', wrapApiHandler('batch.process', async (req, res) => {
+  const batchResults = [];
+  
+  // Process at least 10 items to meet N+1 detection criteria
+  for (let i = 1; i <= 12; i++) {
+    // Use consistent delay to ensure calls are within 5ms of each other
+    // But total duration exceeds 300ms
+    const processingTime = 30; // Each call takes 30ms, 12 calls = 360ms total
+    await new Promise(resolve => setTimeout(resolve, processingTime));
     
-    // Process at least 10 items to meet N+1 detection criteria
-    for (let i = 1; i <= 12; i++) {
-      // Use consistent delay to ensure calls are within 5ms of each other
-      // But total duration exceeds 300ms
-      const processingTime = 30; // Each call takes 30ms, 12 calls = 360ms total
-      await new Promise(resolve => setTimeout(resolve, processingTime));
-      
-      // Simulate an HTTP client call (not GraphQL or static resource)
-      await Sentry.startSpan(
-        {
-          op: "http.client",
-          name: `Process batch item ${i}`,
-          description: "Individual batch item processing"
-        },
-        async () => {
-          batchResults.push({
-            id: i,
-            message: `Batch item ${i} processed in ${processingTime}ms`,
-            timestamp: new Date().toISOString()
-          });
-        }
-      );
-    }
-    
-    res.json(batchResults);
-  } catch (error) {
-    Sentry.captureException(error);
-    res.status(500).json({ error: 'Failed to process batch requests' });
-  }
-});
-
-app.get('/api/user-attributes', async (req, res) => {
-  try {
-    // Simulated user data
-    const userData = {
-      id: 12345,
-      name: 'Test User',
-      email: 'test@example.com',
-      preferences: {
-        theme: 'dark',
-        notifications: true,
-        language: 'en-US',
-      }
-    };
-    
-    res.json(userData);
-  } catch (error) {
-    Sentry.captureException(error);
-    res.status(500).json({ error: 'Failed to get user attributes' });
-  }
-});
-
-// N+1 Query demonstration endpoint
-app.get('/api/users-with-posts', async (req, res) => {
-  try {
-    if (!supabase) {
-      return res.status(503).json({ error: 'Database connection not available' });
-    }
-
-    console.log('Fetching users...');
-    // First query to get all users
-    const { data: users, error: usersError } = await supabase
-      .from('users')
-      .select('id, name, email')
-      .limit(12); // Get 12 users to ensure we trigger N+1 detection
-
-    if (usersError) {
-      console.error('Error fetching users:', usersError);
-      throw usersError;
-    }
-
-    console.log('Users fetched:', users?.length);
-
-    // N+1 problem: Making a separate query for each user's posts
-    const usersWithPosts = await Promise.all(
-      users.map(async (user) => {
-        return await Sentry.startSpan(
-          {
-            op: "http.client",
-            name: `Fetch posts for user ${user.id}`,
-            description: "Individual user posts query"
-          },
-          async () => {
-            console.log(`Fetching posts for user ${user.id}...`);
-            // Simulate network delay that's consistent with N+1 criteria
-            await new Promise(resolve => setTimeout(resolve, 30));
-            
-            const { data: posts, error: postsError } = await supabase
-              .from('posts')
-              .select('id, title, content')
-              .eq('user_id', user.id);
-
-            if (postsError) {
-              console.error(`Error fetching posts for user ${user.id}:`, postsError);
-              throw postsError;
-            }
-
-            console.log(`Found ${posts?.length} posts for user ${user.id}`);
-
-            return {
-              ...user,
-              posts: posts || []
-            };
-          }
-        );
-      })
-    );
-
-    console.log('All users and posts fetched successfully');
-    res.json(usersWithPosts);
-  } catch (error) {
-    console.error('N+1 query error:', error);
-    Sentry.captureException(error);
-    res.status(500).json({ 
-      error: 'Failed to fetch users with posts',
-      details: error.message 
+    // Process batch item
+    batchResults.push({
+      id: i,
+      message: `Batch item ${i} processed in ${processingTime}ms`,
+      timestamp: new Date().toISOString()
     });
   }
-});
+  
+  res.json(batchResults);
+}));
+
+app.get('/api/user-attributes', wrapApiHandler('user.attributes', async (req, res) => {
+  // Simulated user data
+  const userData = {
+    id: 12345,
+    name: 'Test User',
+    email: 'test@example.com',
+    preferences: {
+      theme: 'dark',
+      notifications: true,
+      language: 'en-US',
+    }
+  };
+  
+  res.json(userData);
+}));
+
+// N+1 Query demonstration endpoint
+app.get('/api/users-with-posts', wrapApiHandler('db.users-with-posts.n-plus-one', async (req, res) => {
+  if (!supabase) {
+    return res.status(503).json({ error: 'Database connection not available' });
+  }
+
+  console.log('Fetching users...');
+  // First query to get all users
+  const { data: users, error: usersError } = await supabase
+    .from('users')
+    .select('id, name, email')
+    .limit(12); // Get 12 users to ensure we trigger N+1 detection
+
+  if (usersError) {
+    console.error('Error fetching users:', usersError);
+    throw usersError;
+  }
+
+  console.log('Users fetched:', users?.length);
+
+  // N+1 problem: Making a separate query for each user's posts
+  const usersWithPosts = await Promise.all(
+    users.map(async (user) => {
+      console.log(`Fetching posts for user ${user.id}...`);
+      // Simulate network delay that's consistent with N+1 criteria
+      await new Promise(resolve => setTimeout(resolve, 30));
+      
+      const { data: posts, error: postsError } = await supabase
+        .from('posts')
+        .select('id, title, content')
+        .eq('user_id', user.id);
+
+      if (postsError) {
+        console.error(`Error fetching posts for user ${user.id}:`, postsError);
+        throw postsError;
+      }
+
+      console.log(`Found ${posts?.length} posts for user ${user.id}`);
+
+      return {
+        ...user,
+        posts: posts || []
+      };
+    })
+  );
+
+  console.log('All users and posts fetched successfully');
+  res.json(usersWithPosts);
+}));
 
 // Optimized version that uses a single query
 app.get('/api/users-with-posts-optimized', async (req, res) => {
