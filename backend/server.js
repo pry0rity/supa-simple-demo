@@ -91,8 +91,6 @@ Sentry.init({
   integrations: [
     // Enable Express.js middleware tracing
     new Sentry.Integrations.Express({ app }),
-    // Add profiling integration
-    new ProfilingIntegration(),
   ],
   // Set tracesSampleRate to 1.0 for development, lower in production
   tracesSampleRate: 0.0,
