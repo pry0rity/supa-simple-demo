@@ -1,19 +1,42 @@
 import { useState } from "react";
-import { AlertTriangle } from "../components/Icons";
+import { AlertTriangle, Server, Cpu } from "../components/Icons";
 import * as Sentry from "@sentry/react";
 
 const ErrorPage = () => {
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<{
+    message: string;
+    source: "client" | "server";
+  } | null>(null);
+  const [loading, setLoading] = useState<boolean>(false);
 
-  const handleError = () => {
+  const handleClientError = () => {
+    const err = new Error("A client-side error occurred");
+    setError({
+      message: err.message,
+      source: "client",
+    });
+    Sentry.captureException(err);
+  };
+
+  const handleServerError = async () => {
+    setLoading(true);
     try {
-      throw new Error("This is your first error!");
+      const response = await fetch("http://localhost:3000/api/debug-sentry");
+      if (!response.ok) {
+        await response.json(); // Still need to consume the response
+        const err = new Error("An error occurred on the server");
+        setError({ message: err.message, source: "server" });
+        // Only report to Sentry after we have the backend response
+        Sentry.captureException(err);
+      }
     } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "An unexpected error occurred"
-      );
-      console.error("Caught error:", err);
+      setError({
+        message: err instanceof Error ? err.message : "Network error occurred",
+        source: "server",
+      });
       Sentry.captureException(err);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -25,17 +48,78 @@ const ErrorPage = () => {
       </div>
 
       <div className="bg-white shadow rounded-lg p-6">
-        <button
-          onClick={handleError}
-          className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600"
-        >
-          Trigger Error
-        </button>
+        <p className="mb-4 text-gray-700">
+          This page demonstrates how errors are captured and reported to Sentry
+          from different sources. Select one of the buttons below to trigger a
+          demonstration error.
+        </p>
+
+        <div className="grid md:grid-cols-2 gap-6">
+          <div className="border border-orange-200 rounded-lg p-4 bg-orange-50">
+            <div className="flex items-center mb-3">
+              <Cpu className="mr-2 h-5 w-5 text-orange-600" />
+              <h3 className="font-medium">Client-Side Error</h3>
+            </div>
+            <p className="text-sm text-gray-600 mb-4">
+              Triggers an error in your browser's JavaScript code. The error is
+              caught, displayed below, and reported to Sentry.
+            </p>
+            <button
+              onClick={handleClientError}
+              className="w-full bg-orange-500 text-white px-4 py-2 rounded hover:bg-orange-600 flex items-center justify-center"
+              disabled={loading}
+            >
+              <Cpu className="mr-2 h-5 w-5" />
+              Trigger Client Error
+            </button>
+          </div>
+
+          <div className="border border-red-200 rounded-lg p-4 bg-red-50">
+            <div className="flex items-center mb-3">
+              <Server className="mr-2 h-5 w-5 text-red-600" />
+              <h3 className="font-medium">Server-Side Error</h3>
+            </div>
+            <p className="text-sm text-gray-600 mb-4">
+              Makes an API request that will fail on the backend server. The
+              error is caught, displayed below, and reported to Sentry from both
+              client and server.
+            </p>
+            <button
+              onClick={handleServerError}
+              className="w-full bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600 flex items-center justify-center"
+              disabled={loading}
+            >
+              <Server className="mr-2 h-5 w-5" />
+              Trigger Server Error
+              {loading && <span className="ml-2 animate-pulse">...</span>}
+            </button>
+          </div>
+        </div>
 
         {error && (
-          <div className="mt-4 p-4 bg-red-50 text-red-700 rounded border border-red-200">
-            <p className="font-medium">Caught Error:</p>
-            <p>{error}</p>
+          <div className="mt-8 border-t border-gray-200 pt-6">
+            <h3 className="text-lg font-medium mb-4">Error Details</h3>
+            <div
+              className={`p-5 rounded-lg border-2 ${
+                error.source === "client"
+                  ? "bg-orange-50 border-orange-300"
+                  : "bg-red-50 border-red-300"
+              }`}
+            >
+              <div className="flex items-center mb-3">
+                {error.source === "client" ? (
+                  <Cpu className="mr-2 h-6 w-6 text-orange-600" />
+                ) : (
+                  <Server className="mr-2 h-6 w-6 text-red-600" />
+                )}
+                <h4 className="text-lg font-bold">
+                  {error.source === "client"
+                    ? "CLIENT ERROR CAPTURED"
+                    : "SERVER ERROR CAPTURED"}
+                </h4>
+              </div>
+              <p className="ml-8">{error.message}</p>
+            </div>
           </div>
         )}
       </div>
