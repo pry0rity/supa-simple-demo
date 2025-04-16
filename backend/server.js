@@ -4,6 +4,7 @@ const express = require('express');
 const cors = require('cors');
 const morgan = require('morgan');
 const Sentry = require('@sentry/node');
+const { ProfilingIntegration } = require('@sentry/profiling-node');
 const { createClient } = require('@supabase/supabase-js');
 const fetch = require('node-fetch');
 
@@ -80,7 +81,8 @@ console.log('Environment variables:', {
   SUPABASE_URL: process.env.SUPABASE_URL,
   SUPABASE_KEY_LENGTH: process.env.SUPABASE_ANON_KEY ? process.env.SUPABASE_ANON_KEY.length : 0,
   NODE_ENV: process.env.NODE_ENV,
-  PWD: process.env.PWD
+  PWD: process.env.PWD,
+  SENTRY_DSN: process.env.SENTRY_DSN ? 'Set' : 'Not Set'
 });
 
 // Initialize Sentry
@@ -307,6 +309,7 @@ app.get('/api/posts', async (req, res) => {
     }
 
     const posts = await response.json();
+    res.json(posts);
   } catch (error) {
     console.error('Posts fetch error:', error);
     Sentry.captureException(error);
@@ -372,11 +375,21 @@ app.get('/api/health', (req, res) => {
 });
 
 // Test Sentry error reporting
-app.get('/api/debug-sentry', function mainHandler(req, res) {
-  throw new Error('My first Sentry error!');
-});
+app.get('/api/debug-sentry', wrapApiHandler('debug.error', async (req, res) => {
+  // Create a more informative server-side error
+  const error = new Error('THIS IS A SERVER ERROR: Backend API route deliberately failed for demonstration purposes');
+  error.name = 'ServerDemonstrationError';
+  error.code = 'ESERVER_DEMO';
+  error.details = {
+    source: 'Backend API',
+    location: '/Users/willmcmullen/Projects/supa-simple-demo/backend/server.js:mainHandler',
+    endpoint: '/api/debug-sentry',
+    timestamp: new Date().toISOString(),
+  };
+  throw error;
+}));
 
-// The Sentry error handler must be before any other error middleware
+// Error handling middleware
 app.use(Sentry.Handlers.errorHandler());
 
 // Optional fallthrough error handler
@@ -384,8 +397,8 @@ app.use(function onError(err, req, res, next) {
   res.statusCode = 500;
   res.json({ 
     error: err.message,
-    // Include the Sentry event ID for reference
-    eventId: res.sentry 
+    details: err.details,
+    eventId: res.sentry
   });
 });
 
