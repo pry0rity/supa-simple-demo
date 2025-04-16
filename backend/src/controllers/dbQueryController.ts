@@ -17,42 +17,18 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 export const dbQueryController = {
   getUsers: async (req: Request, res: Response) => {
     try {
-      // Use modern span instrumentation for database query
-      const users = await Sentry.startSpan(
-        {
-          name: 'db-query-users',
-          op: 'db.supabase',
-          description: 'Fetch users from database',
-        },
-        async (span) => {
-          // Query the database for users
-          const { data, error } = await supabase
-            .from('users')
-            .select('id, name, email, created_at')
-            .order('created_at', { ascending: false });
+      // Query the database for users
+      const { data: users, error } = await supabase
+        .from('users')
+        .select('id, name, email, created_at')
+        .order('created_at', { ascending: false });
 
-          if (error) {
-            span?.setStatus('error');
-            throw error;
-          }
-
-          span?.setStatus('ok');
-          return data;
-        }
-      );
+      if (error) {
+        throw error;
+      }
       
-      // Use modern span instrumentation for response formatting
-      const result = await Sentry.startSpan(
-        {
-          name: 'format-response',
-          op: 'format',
-          description: 'Format response',
-        },
-        async () => {
-          // Just returning users directly, but in a real app you might do more processing
-          return users;
-        }
-      );
+      // Just returning users directly
+      const result = users;
       
       res.json(result);
     } catch (error) {

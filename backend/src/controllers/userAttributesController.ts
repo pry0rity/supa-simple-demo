@@ -4,26 +4,17 @@ import * as Sentry from '@sentry/node';
 export const userAttributesController = {
   getUserAttributes: async (_req: Request, res: Response) => {
     try {
-      const userData = await Sentry.startSpan(
-        {
-          name: 'user-attributes',
-          op: 'user.data',
-          description: 'Generate user attributes',
-        },
-        async () => {
-          // Simulated user data
-          return {
-            id: 12345,
-            name: 'Test User',
-            email: 'test@example.com',
-            preferences: {
-              theme: 'dark',
-              notifications: true,
-              language: 'en-US',
-            }
-          };
+      // Simulated user data
+      const userData = {
+        id: 12345,
+        name: 'Test User',
+        email: 'test@example.com',
+        preferences: {
+          theme: 'dark',
+          notifications: true,
+          language: 'en-US',
         }
-      );
+      };
       
       res.json(userData);
     } catch (error) {

@@ -291,8 +291,6 @@ app.get('/api/posts', async (req, res) => {
     }
 
     const posts = await response.json();
-    console.log(`Successfully fetched ${posts.length} posts from JSONPlaceholder`);
-    res.json(posts);
   } catch (error) {
     console.error('Posts fetch error:', error);
     Sentry.captureException(error);

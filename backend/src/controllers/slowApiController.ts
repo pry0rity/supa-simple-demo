@@ -4,19 +4,9 @@ import * as Sentry from '@sentry/node';
 export const slowApiController = {
   getSlowResponse: async (req: Request, res: Response) => {
     try {
-      // Create a span for the waiting operation using modern span instrumentation
+      // Simple waiting operation
       const waitTime = 2000;
-      
-      await Sentry.startSpan(
-        {
-          name: 'slow-api-wait',
-          op: 'timer',
-          description: 'Waiting period',
-        },
-        async () => {
-          await new Promise(resolve => setTimeout(resolve, waitTime));
-        }
-      );
+      await new Promise(resolve => setTimeout(resolve, waitTime));
       
       res.json({ message: "This response took 2 seconds to complete!" });
     } catch (error) {

@@ -5,6 +5,7 @@ export const {
   Activity,
   AlertTriangle,
   AlertOctagon,
+  Cpu,
   Database,
   Layers,
   Server,
