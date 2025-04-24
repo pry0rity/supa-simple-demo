@@ -25,7 +25,9 @@ const ThirdPartyApiPage = () => {
   const [postData, setPostData] = useState<Post | null>(null);
   const [comments, setComments] = useState<Comment[]>([]);
   const [responseTime, setResponseTime] = useState<number | null>(null);
-  const [commentsResponseTime, setCommentsResponseTime] = useState<number | null>(null);
+  const [commentsResponseTime, setCommentsResponseTime] = useState<
+    number | null
+  >(null);
   const [error, setError] = useState<string | null>(null);
   const [showComments, setShowComments] = useState(false);
 
@@ -40,22 +42,20 @@ const ThirdPartyApiPage = () => {
 
     try {
       const startTime = performance.now();
-      
+
       // This API call is automatically instrumented by Sentry
       const data = await api.getExternalPost(postId);
-      
+
       const endTime = performance.now();
       const elapsed = endTime - startTime;
-      
+
       setPostData(data as Post);
       setResponseTime(Math.round(elapsed));
     } catch (error) {
       console.error("Error:", error);
       Sentry.captureException(error);
       setError(
-        error instanceof Error
-          ? error.message
-          : "An unexpected error occurred"
+        error instanceof Error ? error.message : "An unexpected error occurred"
       );
     } finally {
       setLoading(false);
@@ -64,19 +64,19 @@ const ThirdPartyApiPage = () => {
 
   const fetchComments = async () => {
     if (!postData) return;
-    
+
     setLoadingComments(true);
     setCommentsResponseTime(null);
 
     try {
       const startTime = performance.now();
-      
+
       // This API call is automatically instrumented by Sentry
       const data = await api.getExternalComments(postData.id);
-      
+
       const endTime = performance.now();
       const elapsed = endTime - startTime;
-      
+
       setComments(data as Comment[]);
       setCommentsResponseTime(Math.round(elapsed));
       setShowComments(true);
@@ -84,9 +84,7 @@ const ThirdPartyApiPage = () => {
       console.error("Error:", error);
       Sentry.captureException(error);
       setError(
-        error instanceof Error
-          ? error.message
-          : "Failed to fetch comments"
+        error instanceof Error ? error.message : "Failed to fetch comments"
       );
     } finally {
       setLoadingComments(false);
@@ -102,7 +100,10 @@ const ThirdPartyApiPage = () => {
 
       <div className="bg-white shadow rounded-lg p-6 overflow-hidden">
         <div className="mb-4">
-          <label htmlFor="postId" className="block text-sm font-medium text-gray-700">
+          <label
+            htmlFor="postId"
+            className="block text-sm font-medium text-gray-700"
+          >
             Post ID (1-100)
           </label>
           <div className="mt-1 flex rounded-md shadow-sm">
@@ -148,28 +149,34 @@ const ThirdPartyApiPage = () => {
                   </span>
                 )}
               </div>
-              
+
               <div className="mt-2 max-w-full">
-                <h4 className="font-medium text-lg mb-2 break-words">{postData.title}</h4>
+                <h4 className="font-medium text-lg mb-2 break-words">
+                  {postData.title}
+                </h4>
                 <p className="text-indigo-900 break-words">{postData.body}</p>
               </div>
-              
+
               <div className="mt-3 pt-3 border-t border-indigo-100 flex justify-between items-center">
                 <div className="text-xs text-indigo-600">
                   User ID: {postData.userId}
                 </div>
-                
+
                 <button
                   onClick={fetchComments}
                   disabled={loadingComments}
                   className="inline-flex items-center text-xs px-2 py-1 bg-white border border-indigo-300 rounded-md shadow-sm hover:bg-indigo-50"
                 >
                   <MessageCircle className="h-3 w-3 mr-1" />
-                  {loadingComments ? "Loading..." : showComments ? "Refresh Comments" : "Show Comments"}
+                  {loadingComments
+                    ? "Loading..."
+                    : showComments
+                    ? "Refresh Comments"
+                    : "Show Comments"}
                 </button>
               </div>
             </div>
-            
+
             {/* Comments section */}
             {showComments && (
               <div className="p-4 bg-gray-50 rounded border border-gray-200">
@@ -183,42 +190,55 @@ const ThirdPartyApiPage = () => {
                     </span>
                   )}
                 </div>
-                
+
                 <div className="space-y-3 max-w-full">
                   {comments.map((comment) => (
-                    <div key={comment.id} className="p-3 bg-white rounded shadow-sm">
+                    <div
+                      key={comment.id}
+                      className="p-3 bg-white rounded shadow-sm"
+                    >
                       <div className="font-medium truncate">{comment.name}</div>
-                      <div className="text-xs text-gray-500 mb-2">{comment.email}</div>
-                      <p className="text-sm text-gray-700 break-words">{comment.body}</p>
+                      <div className="text-xs text-gray-500 mb-2">
+                        {comment.email}
+                      </div>
+                      <p className="text-sm text-gray-700 break-words">
+                        {comment.body}
+                      </p>
                     </div>
                   ))}
                 </div>
               </div>
             )}
-            
+
             {/* Raw JSON */}
             <div>
-              <h3 className="font-semibold mb-2 text-sm text-gray-600">Raw JSON:</h3>
+              <h3 className="font-semibold mb-2 text-sm text-gray-600">
+                Raw JSON:
+              </h3>
               <pre className="bg-gray-50 p-3 rounded text-sm overflow-x-auto break-words border border-gray-200 max-w-full">
                 {JSON.stringify(
                   {
                     post: {
                       ...postData,
                       _metadata: {
-                        responseTime: responseTime ? `${responseTime}ms` : 'Not measured',
-                        timestamp: new Date().toISOString()
-                      }
+                        responseTime: responseTime
+                          ? `${responseTime}ms`
+                          : "Not measured",
+                        timestamp: new Date().toISOString(),
+                      },
                     },
                     ...(showComments && {
                       comments: {
                         count: comments.length,
                         data: comments,
                         _metadata: {
-                          responseTime: commentsResponseTime ? `${commentsResponseTime}ms` : 'Not measured',
-                          timestamp: new Date().toISOString()
-                        }
-                      }
-                    })
+                          responseTime: commentsResponseTime
+                            ? `${commentsResponseTime}ms`
+                            : "Not measured",
+                          timestamp: new Date().toISOString(),
+                        },
+                      },
+                    }),
                   },
                   null,
                   2

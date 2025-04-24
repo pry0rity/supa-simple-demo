@@ -4,98 +4,29 @@ const express = require('express');
 const cors = require('cors');
 const morgan = require('morgan');
 const Sentry = require('@sentry/node');
+const { ProfilingIntegration } = require('@sentry/profiling-node');
 const { createClient } = require('@supabase/supabase-js');
 const fetch = require('node-fetch');
 
 const app = express();
 const port = process.env.PORT || 3001;
 
-/**
- * Wrapper for API route handlers that automatically creates a Sentry span
- * Similar to simpleFetch in the frontend
- * 
- * @param {string} name - Name of the operation for Sentry span
- * @param {Function} handlerFn - The async route handler function to wrap
- * @returns {Function} Express route handler with Sentry instrumentation
- */
-const wrapApiHandler = (name, handlerFn) => {
-  return async (req, res, next) => {
-    try {
-      // If the handler has already sent a response, we don't want to continue
-      let responseSent = false;
-      
-      // Save the original res.json, res.send, etc. methods
-      const originalJson = res.json;
-      const originalSend = res.send;
-      const originalEnd = res.end;
-      
-      // Override the methods to track when a response is sent
-      res.json = function(data) {
-        responseSent = true;
-        return originalJson.call(this, data);
-      };
-      
-      res.send = function(data) {
-        responseSent = true;
-        return originalSend.call(this, data);
-      };
-      
-      res.end = function(data) {
-        responseSent = true;
-        return originalEnd.call(this, data);
-      };
-      
-      // Execute the handler inside a Sentry span
-      await Sentry.startSpan(
-        {
-          name: `api.${name}`,
-          op: 'http.server',
-          description: `API handler for ${req.method} ${req.path}`,
-        },
-        async () => {
-          // Wait for the handler function to execute
-          await handlerFn(req, res, next);
-        }
-      );
-      
-      // Only call next if no response was sent (helps with error middleware)
-      if (!responseSent && next) {
-        next();
-      }
-    } catch (error) {
-      // If an error occurs that wasn't handled by the handler function
-      console.error(`Error in API handler ${name}:`, error);
-      Sentry.captureException(error);
-      
-      // Only pass to next if the response hasn't been sent yet
-      if (!res.headersSent && next) {
-        next(error);
-      }
-    }
-  };
-};
-
-// Debug: Log environment variables
-console.log('Environment variables:', {
-  SUPABASE_URL: process.env.SUPABASE_URL,
-  SUPABASE_KEY_LENGTH: process.env.SUPABASE_ANON_KEY ? process.env.SUPABASE_ANON_KEY.length : 0,
-  NODE_ENV: process.env.NODE_ENV,
-  PWD: process.env.PWD
-});
-
 // Initialize Sentry
 Sentry.init({
   dsn: process.env.SENTRY_DSN,
   integrations: [
+    // Enable HTTP calls tracing
+    new Sentry.Integrations.Http({ tracing: true }),
     // Enable Express.js middleware tracing
     new Sentry.Integrations.Express({ app }),
-    // Add profiling integration
-    new ProfilingIntegration(),
   ],
-  // Set tracesSampleRate to 1.0 for development, lower in production
   tracesSampleRate: 1.0,
-  // Set profilesSampleRate to 1.0 for development, lower in production
-  profilesSampleRate: 1.0,
+  // Enable distributed tracing
+  tracePropagationTargets: [
+    'localhost', 
+    /^\/api\//,
+    new URL(process.env.SUPABASE_URL).hostname
+  ],
 });
 
 // The request handler must be the first middleware
@@ -118,63 +49,89 @@ try {
   if (!supabaseUrl || !supabaseKey) {
     throw new Error('Missing Supabase credentials');
   }
-  
-  console.log('Initializing Supabase client with URL:', supabaseUrl);
   supabase = createClient(supabaseUrl, supabaseKey);
-  console.log('Supabase client initialized successfully');
 } catch (error) {
   console.error('Failed to initialize Supabase:', error.message);
 }
 
 // Routes
-app.get('/api/slow', wrapApiHandler('slow', async (req, res) => {
-  // Simulate a slow API response
+app.get('/api/slow', async (req, res) => {
   await new Promise(resolve => setTimeout(resolve, 2000));
   res.json({ message: "This response took 2 seconds to complete!" });
-}));
+});
 
-app.get('/api/db', wrapApiHandler('db.users', async (req, res) => {
-  if (!supabase) {
-    return res.status(503).json({ error: 'Database connection not available' });
-  }
-  // Query the database for users
-  console.log('Querying Supabase users table...');
-  const { data: users, error } = await supabase
-    .from('users')
-    .select('id, name, email, created_at')
-    .order('created_at', { ascending: false });
-  
-  console.log('Supabase query result:', { users, error });
-  
-  if (error) {
-    throw error;
-  }
-  
-  res.json(users);
-}));
+app.get('/api/db', async (req, res) => {
+  try {
+    if (!supabase) {
+      return res.status(503).json({ 
+        error: 'Database connection not available',
+        details: 'Supabase client is not initialized'
+      });
+    }
 
-app.get('/api/batch', wrapApiHandler('batch.process', async (req, res) => {
-  const batchResults = [];
+    // Add a timeout to the Supabase query
+    const timeoutPromise = new Promise((_, reject) => {
+      setTimeout(() => reject(new Error('Database query timed out')), 5000);
+    });
+
+    const queryPromise = supabase
+      .from('users')
+      .select('id, name, email, created_at')
+      .order('id', { ascending: true })
+
+    console.log('Executing Supabase query...');
+    const { data: users, error } = await Promise.race([
+      queryPromise,
+      timeoutPromise
+    ]);
   
-  // Process at least 10 items to meet N+1 detection criteria
-  for (let i = 1; i <= 12; i++) {
-    // Use consistent delay to ensure calls are within 5ms of each other
-    // But total duration exceeds 300ms
-    const processingTime = 30; // Each call takes 30ms, 12 calls = 360ms total
-    await new Promise(resolve => setTimeout(resolve, processingTime));
+    if (error) {
+      console.error('Supabase query error:', error);
+      return res.status(500).json({ 
+        error: 'Database query failed',
+        details: error.message
+      });
+    }
+
+    // Log the raw results to verify ordering
+    console.log('Raw query results:', users);
+    console.log('User IDs in order:', users.map(u => u.id));
+  
+    res.json(users);
+  } catch (error) {
+    console.error('Database error:', error);
+    Sentry.captureException(error);
     
-    // Process batch item
+    // Check if it's a timeout error
+    if (error.message === 'Database query timed out') {
+      return res.status(504).json({ 
+        error: 'Database timeout',
+        details: 'The database is not responding. This might be because the Supabase project is suspended.'
+      });
+    }
+
+    res.status(500).json({ 
+      error: 'Failed to fetch users',
+      details: error.message
+    });
+  }
+});
+
+app.get('/api/batch', async (req, res) => {
+  const batchResults = [];
+  for (let i = 1; i <= 12; i++) {
+    const processingTime = 30;
+    await new Promise(resolve => setTimeout(resolve, processingTime));
     batchResults.push({
       id: i,
       message: `Batch item ${i} processed in ${processingTime}ms`,
       timestamp: new Date().toISOString()
     });
   }
-  
   res.json(batchResults);
-}));
+});
 
-app.get('/api/user-attributes', wrapApiHandler('user.attributes', async (req, res) => {
+app.get('/api/user-attributes', async (req, res) => {
   // Simulated user data
   const userData = {
     id: 12345,
@@ -188,10 +145,10 @@ app.get('/api/user-attributes', wrapApiHandler('user.attributes', async (req, re
   };
   
   res.json(userData);
-}));
+});
 
 // N+1 Query demonstration endpoint
-app.get('/api/users-with-posts', wrapApiHandler('db.users-with-posts.n-plus-one', async (req, res) => {
+app.get('/api/users-with-posts', async (req, res) => {
   if (!supabase) {
     return res.status(503).json({ error: 'Database connection not available' });
   }
@@ -238,7 +195,7 @@ app.get('/api/users-with-posts', wrapApiHandler('db.users-with-posts.n-plus-one'
 
   console.log('All users and posts fetched successfully');
   res.json(usersWithPosts);
-}));
+});
 
 // Optimized version that uses a single query
 app.get('/api/users-with-posts-optimized', async (req, res) => {
@@ -296,48 +253,79 @@ app.get('/api/users-with-posts-optimized', async (req, res) => {
   }
 });
 
-// Posts endpoint that fetches from JSONPlaceholder
-app.get('/api/posts', async (req, res) => {
+// Single post endpoint for N+1 demo
+app.get('/api/posts/:id', async (req, res) => {
   try {
-    console.log('Fetching posts from JSONPlaceholder...');
-    const response = await fetch('https://jsonplaceholder.typicode.com/posts');
-    
-    if (!response.ok) {
-      throw new Error(`JSONPlaceholder API error: ${response.status}`);
+    if (!supabase) {
+      return res.status(503).json({ error: 'Database connection not available' });
     }
 
-    const posts = await response.json();
+    // Immediately execute query without any processing
+    const { data: post, error } = await supabase
+      .from('posts')
+      .select('*')
+      .eq('id', req.params.id)
+      .single();
+
+    if (error) throw error;
+    res.json(post);
   } catch (error) {
-    console.error('Posts fetch error:', error);
     Sentry.captureException(error);
-    res.status(500).json({ 
-      error: 'Failed to fetch posts',
-      details: error.message 
-    });
+    res.status(500).json({ error: 'Failed to fetch post' });
+  }
+});
+
+// All posts endpoint for optimized query
+app.get('/api/posts', async (req, res) => {
+  try {
+    if (!supabase) {
+      return res.status(503).json({ error: 'Database connection not available' });
+    }
+
+    // Immediately execute query without any processing
+    const { data: posts, error } = await supabase
+      .from('posts')
+      .select('*')
+      .order('id', { ascending: true })
+      .limit(20);
+
+    if (error) throw error;
+    res.json(posts);
+  } catch (error) {
+    Sentry.captureException(error);
+    res.status(500).json({ error: 'Failed to fetch posts' });
   }
 });
 
 // Comments endpoint for a specific post
 app.get('/api/posts/:postId/comments', async (req, res) => {
   try {
-    const postId = req.params.postId;
-    console.log(`Fetching comments for post ${postId} from JSONPlaceholder...`);
-    
-    const response = await fetch(`https://jsonplaceholder.typicode.com/posts/${postId}/comments`);
-    
-    if (!response.ok) {
-      throw new Error(`JSONPlaceholder API error: ${response.status}`);
+    if (!supabase) {
+      return res.status(503).json({ error: 'Database connection not available' });
     }
 
-    const comments = await response.json();
-    console.log(`Successfully fetched ${comments.length} comments for post ${postId}`);
+    const postId = req.params.postId;
+    const { data: comments, error } = await supabase
+      .from('comments')
+      .select('*')
+      .eq('post_id', postId)
+      .order('id', { ascending: true });
+
+    if (error) {
+      console.error('Supabase comments query error:', error);
+      return res.status(500).json({ 
+        error: 'Failed to fetch comments',
+        details: error.message
+      });
+    }
+
     res.json(comments);
   } catch (error) {
-    console.error('Comments fetch error:', error);
+    console.error('Comments endpoint error:', error);
     Sentry.captureException(error);
     res.status(500).json({ 
       error: 'Failed to fetch comments',
-      details: error.message 
+      details: error.message
     });
   }
 });
@@ -345,23 +333,30 @@ app.get('/api/posts/:postId/comments', async (req, res) => {
 // All comments endpoint
 app.get('/api/comments', async (req, res) => {
   try {
-    console.log('Fetching all comments from JSONPlaceholder...');
-    
-    const response = await fetch('https://jsonplaceholder.typicode.com/comments');
-    
-    if (!response.ok) {
-      throw new Error(`JSONPlaceholder API error: ${response.status}`);
+    if (!supabase) {
+      return res.status(503).json({ error: 'Database connection not available' });
     }
 
-    const comments = await response.json();
-    console.log(`Successfully fetched ${comments.length} comments`);
+    const { data: comments, error } = await supabase
+      .from('comments')
+      .select('*')
+      .order('id', { ascending: true });
+
+    if (error) {
+      console.error('Supabase all comments query error:', error);
+      return res.status(500).json({ 
+        error: 'Failed to fetch comments',
+        details: error.message
+      });
+    }
+
     res.json(comments);
   } catch (error) {
-    console.error('Comments fetch error:', error);
+    console.error('All comments endpoint error:', error);
     Sentry.captureException(error);
     res.status(500).json({ 
       error: 'Failed to fetch comments',
-      details: error.message 
+      details: error.message
     });
   }
 });
@@ -372,24 +367,23 @@ app.get('/api/health', (req, res) => {
 });
 
 // Test Sentry error reporting
-app.get('/api/debug-sentry', function mainHandler(req, res) {
-  throw new Error('My first Sentry error!');
+app.get('/api/debug-sentry', async (req, res, next) => {
+  try {
+    throw new Error('This error is happening on the server!');
+  } catch (error) {
+    next(error);
+  }
 });
 
-// The Sentry error handler must be before any other error middleware
+// Error handling middleware
 app.use(Sentry.Handlers.errorHandler());
 
 // Optional fallthrough error handler
 app.use(function onError(err, req, res, next) {
   res.statusCode = 500;
-  res.json({ 
-    error: err.message,
-    // Include the Sentry event ID for reference
-    eventId: res.sentry 
-  });
+  res.json({ error: err.message });
 });
 
 app.listen(port, () => {
   console.log(`Server running at http://localhost:${port}`);
-  console.log(`Sentry initialized: ${process.env.SENTRY_DSN ? 'Yes' : 'No'}`);
 });

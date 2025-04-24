@@ -15,4 +15,10 @@ export const {
   RefreshCw,
   Globe,
   MessageCircle,
+  ChevronLeft,
+  ChevronRight,
+  ShoppingCart,
+  ArrowRight,
+  CheckCircle,
+  XCircle,
 } = Icons;
