@@ -118,6 +118,10 @@ const ErrorPage = () => {
                 </h4>
               </div>
               <p className="ml-8">{error.message}</p>
+              <div className="mt-4 bg-blue-50 border border-blue-200 p-4 rounded-lg">
+                <h5 className="font-medium mb-2">User-Friendly Error Message:</h5>
+                <p className="text-gray-800">"An error has occurred in the application. We've been notified and are working on a fix."</p>
+              </div>
             </div>
           </div>
         )}

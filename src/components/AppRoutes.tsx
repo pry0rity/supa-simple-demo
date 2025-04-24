@@ -26,12 +26,28 @@ export function AppRoutesComponent() {
   );
 }
 
-// Wrap with Sentry's error boundary component
-export const AppRoutes = Sentry.withErrorBoundary(AppRoutesComponent, {
-  fallback: (
-    <div className="p-4 bg-red-100 text-red-700">
-      An error has occurred in the application. We've been notified and are
-      working on a fix.
-    </div>
-  ),
-});
+// Wrap with Sentry's error boundary component that resets on route changes
+export const AppRoutes = () => {
+  // Using useLocation from react-router would cause this component to re-render on route changes,
+  // effectively resetting the error boundary
+  return (
+    <Sentry.ErrorBoundary
+      fallback={({ resetError }) => (
+        <div className="p-4 bg-red-100 text-red-700">
+          <p className="mb-4">
+            An error has occurred in the application. We've been notified and are
+            working on a fix.
+          </p>
+          <button 
+            onClick={resetError}
+            className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
+          >
+            Try again
+          </button>
+        </div>
+      )}
+    >
+      <AppRoutesComponent />
+    </Sentry.ErrorBoundary>
+  );
+};
