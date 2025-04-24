@@ -15,9 +15,18 @@ const port = process.env.PORT || 3001;
 Sentry.init({
   dsn: process.env.SENTRY_DSN,
   integrations: [
+    // Enable HTTP calls tracing
+    new Sentry.Integrations.Http({ tracing: true }),
+    // Enable Express.js middleware tracing
     new Sentry.Integrations.Express({ app }),
   ],
   tracesSampleRate: 1.0,
+  // Enable distributed tracing
+  tracePropagationTargets: [
+    'localhost', 
+    /^\/api\//,
+    new URL(process.env.SUPABASE_URL).hostname
+  ],
 });
 
 // The request handler must be the first middleware

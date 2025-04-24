@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { AlertOctagon, CheckCircle, XCircle } from "../components/Icons";
 import * as Sentry from "@sentry/react";
+import { api } from "../services/api";
 
 interface Comment {
   id: number;
@@ -16,6 +17,7 @@ interface Post {
   body: string;
   userId: number;
   comments?: Comment[];
+  simulatedInstanceId?: number;
 }
 
 interface QueryStats {
@@ -104,65 +106,50 @@ export function JsonPlaceholderNPlusOnePage() {
       setRequests([]);
 
       const startTotalTime = performance.now();
-      const REPEAT_COUNT = 11; // Number of identical requests to trigger Sentry
+      const REPEAT_COUNT = 11;
 
-      // First, get a single post from JSONPlaceholder
       const startPostsQuery = performance.now();
-      const singlePost = await fetchWithTracking("GET /posts/1", () =>
-        fetch("https://jsonplaceholder.typicode.com/posts/1").then((res) =>
-          res.json()
-        )
+      const singlePost = await fetchWithTracking<Post>("GET /posts/1", () =>
+        api.getExternalPost(1)
       );
       const postsQueryTime = performance.now() - startPostsQuery;
 
-      // Create 11 copies of the same post to simulate a component rendering the same post multiple times
-      // This simulates a UI with multiple components that all need the same data but don't share state
       const repeatedPosts = Array(REPEAT_COUNT)
         .fill(null)
         .map((_, index) => ({
           ...singlePost,
-          id: singlePost.id,
-          simulatedInstanceId: index + 1, // Just to distinguish between instances in our UI
+          simulatedInstanceId: index + 1,
         }));
 
       const commentQueryTimes: { postId: number; time: number }[] = [];
       let postsWithComments: Post[];
 
       if (optimized) {
-        // Optimized approach: get comments once and reuse for all instances
         const startCommentQuery = performance.now();
-        const comments = await fetchWithTracking("GET /posts/1/comments", () =>
-          fetch("https://jsonplaceholder.typicode.com/posts/1/comments").then(
-            (res) => res.json()
-          )
+        const comments = await fetchWithTracking<Comment[]>(
+          "GET /posts/1/comments",
+          () => api.getExternalComments(1)
         );
         const commentQueryTime = performance.now() - startCommentQuery;
         commentQueryTimes.push({ postId: 1, time: commentQueryTime });
 
-        // Reuse the same comments for all post instances (proper caching/state management)
-        postsWithComments = repeatedPosts.map((post: Post) => ({
+        postsWithComments = repeatedPosts.map((post) => ({
           ...post,
           comments,
         }));
       } else {
-        // N+1 Query Anti-pattern: make the exact same request multiple times
-        // This simulates components that don't share state and each make their own API call
-        postsWithComments = await Promise.all(
-          repeatedPosts.map(async (post: Post, index) => {
-            const startCommentQuery = performance.now();
-            // Same endpoint called 11 times!
-            const comments = await fetchWithTracking(
-              `GET /posts/1/comments (instance ${index + 1})`,
-              () =>
-                fetch(
-                  "https://jsonplaceholder.typicode.com/posts/1/comments"
-                ).then((res) => res.json())
-            );
-            const commentQueryTime = performance.now() - startCommentQuery;
-            commentQueryTimes.push({ postId: 1, time: commentQueryTime });
-            return { ...post, comments };
-          })
-        );
+        const commentPromises = repeatedPosts.map(async (post, index) => {
+          const startCommentQuery = performance.now();
+          const comments = await fetchWithTracking<Comment[]>(
+            `GET /posts/1/comments (instance ${index + 1})`,
+            () => api.getExternalComments(1)
+          );
+          const commentQueryTime = performance.now() - startCommentQuery;
+          commentQueryTimes.push({ postId: 1, time: commentQueryTime });
+          return { ...post, comments };
+        });
+
+        postsWithComments = await Promise.all(commentPromises);
       }
 
       const totalTime = performance.now() - startTotalTime;

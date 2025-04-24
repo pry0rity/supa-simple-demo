@@ -3,6 +3,7 @@ import { AppContent } from "./components/AppContent";
 
 // Initialize Sentry
 const SENTRY_DSN = import.meta.env.VITE_SENTRY_DSN;
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 
 console.log(
   "Initializing Sentry with DSN:",
@@ -13,7 +14,15 @@ Sentry.init({
   dsn: SENTRY_DSN,
   debug: true,
   integrations: [
-    Sentry.browserTracingIntegration(),
+    Sentry.browserTracingIntegration({
+      // Enable distributed tracing
+      tracePropagationTargets: [
+        "localhost",
+        /^\/api\//,
+        "jsonplaceholder.typicode.com",
+        new URL(SUPABASE_URL).hostname,
+      ],
+    }),
 
     Sentry.replayIntegration({
       // Capture 100% of sessions for testing
@@ -31,11 +40,6 @@ Sentry.init({
   replaysSessionSampleRate: 1.0, // Record all sessions
   replaysOnErrorSampleRate: 1.0, // Record all sessions with errors
   environment: "development",
-  tracePropagationTargets: [
-    "localhost",
-    /^\/api\//,
-    "jsonplaceholder.typicode.com",
-  ],
 });
 
 // Test replay functionality

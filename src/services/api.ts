@@ -1,80 +1,96 @@
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
-// Simple fetch utility without custom Sentry instrumentation
-async function simpleFetch(url: string, options?: RequestInit) { 
-  const response = await fetch(url, options);
-  if (!response.ok) {
-    throw new Error(`HTTP error! status: ${response.status}`);
-  }
-  return response.json();
-}
-
 export const api = {
-  getSlowResponse: async () => {
-    return simpleFetch(`${API_BASE_URL}/slow`);
-  },
-  
-  getUsers: async () => {
-    return simpleFetch(`${API_BASE_URL}/db`);
-  },
-  
-  // Added to handle batch requests that were going to /api/batch directly 
-  getBatchResults: async () => {
-    return simpleFetch(`${API_BASE_URL}/batch`);
-  },
-  
-  // Added for client component demo
-  getUserAttributes: async () => {
-    return simpleFetch(`${API_BASE_URL}/user-attributes`);
-  },
-  
-  // 3rd party API example with JSONPlaceholder
-  getExternalPost: async (postId: number = 1) => {
-    return simpleFetch(`https://jsonplaceholder.typicode.com/posts/${postId}`);
-  },
-  
-  getExternalComments: async (postId: number = 1) => {
-    return simpleFetch(`https://jsonplaceholder.typicode.com/posts/${postId}/comments`);
-  },
-  
   // N+1 Query Demo methods
   getPost: async (id: number) => {
-    return simpleFetch(`${API_BASE_URL}/posts/${id}`);
+    const response = await fetch(`${API_BASE_URL}/posts/${id}`);
+    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+    return response.json();
   },
 
   getAllPosts: async () => {
-    return simpleFetch(`${API_BASE_URL}/posts`);
+    const response = await fetch(`${API_BASE_URL}/posts`);
+    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+    return response.json();
   },
 
-  // Add new methods for posts and comments
+  // JSONPlaceholder methods for the other demo
+  getExternalPost: async (postId: number = 1) => {
+    const response = await fetch(`https://jsonplaceholder.typicode.com/posts/${postId}`);
+    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+    return response.json();
+  },
+
+  getExternalComments: async (postId: number = 1) => {
+    const response = await fetch(`https://jsonplaceholder.typicode.com/posts/${postId}/comments`);
+    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+    return response.json();
+  },
+
+  getSlowResponse: async () => {
+    const response = await fetch(`${API_BASE_URL}/slow`);
+    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+    return response.json();
+  },
+  
+  getUsers: async () => {
+    const response = await fetch(`${API_BASE_URL}/db`);
+    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+    return response.json();
+  },
+  
+  getBatchResults: async () => {
+    const response = await fetch(`${API_BASE_URL}/batch`);
+    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+    return response.json();
+  },
+  
+  getUserAttributes: async () => {
+    const response = await fetch(`${API_BASE_URL}/user-attributes`);
+    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+    return response.json();
+  },
+
   getPostIds: async () => {
-    // Get all posts but only return their IDs
-    const posts = await simpleFetch(`${API_BASE_URL}/posts`);
+    const response = await fetch(`${API_BASE_URL}/posts`);
+    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+    const posts = await response.json();
     return posts.map((post: { id: number }) => post.id);
   },
 
   getPosts: async () => {
-    return simpleFetch(`${API_BASE_URL}/posts`);
+    const response = await fetch(`${API_BASE_URL}/posts`);
+    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+    return response.json();
   },
 
   getPostComments: async (postId: number) => {
-    return simpleFetch(`${API_BASE_URL}/posts/${postId}/comments`);
+    const response = await fetch(`${API_BASE_URL}/posts/${postId}/comments`);
+    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+    return response.json();
   },
 
   getAllComments: async () => {
-    return simpleFetch('https://jsonplaceholder.typicode.com/comments');
+    const response = await fetch('https://jsonplaceholder.typicode.com/comments');
+    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+    return response.json();
   },
 
-  // Product-related endpoints for N+1 demo (using Supabase)
   getProducts: async () => {
-    return simpleFetch(`${API_BASE_URL}/posts`);
+    const response = await fetch(`${API_BASE_URL}/posts`);
+    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+    return response.json();
   },
 
   getProductReviews: async (productId: number) => {
-    return simpleFetch(`${API_BASE_URL}/posts/${productId}/comments`);
+    const response = await fetch(`${API_BASE_URL}/posts/${productId}/comments`);
+    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+    return response.json();
   },
 
   getAllReviews: async () => {
-    return simpleFetch(`${API_BASE_URL}/comments`);
-  },
+    const response = await fetch(`${API_BASE_URL}/comments`);
+    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+    return response.json();
+  }
 };

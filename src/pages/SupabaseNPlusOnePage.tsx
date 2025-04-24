@@ -112,16 +112,13 @@ export function SupabaseNPlusOnePage() {
           isOptimized: true,
         });
       } else {
-        // N+1: Make all requests simultaneously
+        // N+1: Make 20 requests to the same endpoint
         setActiveStep(1);
 
         // Create all request promises before any execution
-        const postIds = Array.from({ length: 20 }, (_, i) => i + 1);
-
-        // Start all requests at exactly the same time with tracking
-        const postPromises = postIds.map((id) =>
-          fetchWithTracking(`GET /posts/${id}`, () => api.getPost(id))
-        );
+        const postPromises = Array(20)
+          .fill(null)
+          .map(() => fetchWithTracking("GET /posts/1", () => api.getPost(1)));
 
         // Wait for all to complete
         const posts = await Promise.all(postPromises);
@@ -159,7 +156,7 @@ export function SupabaseNPlusOnePage() {
   };
 
   return (
-    <div className="max-w-6xl mx-auto">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
       <div className="flex items-center mb-6">
         <AlertOctagon className="mr-2 text-red-600" />
         <h2 className="text-2xl font-bold">Supabase N+1 Query Demo</h2>
@@ -212,7 +209,7 @@ export function SupabaseNPlusOnePage() {
               </div>
             </div>
 
-            <div className="space-x-4 mb-4">
+            <div className="flex flex-wrap gap-4 mb-4">
               <button
                 onClick={() => triggerNPlusOne(false)}
                 disabled={loading}
@@ -325,7 +322,9 @@ export function SupabaseNPlusOnePage() {
                   } transition-all duration-300`}
                 >
                   <div className="flex items-center justify-between mb-1">
-                    <span className="font-mono text-xs">{req.url}</span>
+                    <span className="font-mono text-xs break-all">
+                      {req.url}
+                    </span>
                     <span
                       className={`text-xs px-2 py-0.5 rounded-full ${
                         req.status === "pending"
