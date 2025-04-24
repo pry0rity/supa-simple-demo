@@ -14,6 +14,7 @@ Sentry.init({
   debug: true,
   integrations: [
     Sentry.browserTracingIntegration(),
+
     Sentry.replayIntegration({
       // Capture 100% of sessions for testing
       maskAllText: false,
@@ -24,9 +25,9 @@ Sentry.init({
       networkResponseHeaders: ["content-type"],
     }),
   ],
-  // Performance Monitoring
-  tracesSampleRate: 0,
-  // Session Replay
+
+  tracesSampleRate: 1.0,
+
   replaysSessionSampleRate: 1.0, // Record all sessions
   replaysOnErrorSampleRate: 1.0, // Record all sessions with errors
   environment: "development",

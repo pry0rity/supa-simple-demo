@@ -17,4 +17,8 @@ export const {
   MessageCircle,
   ChevronLeft,
   ChevronRight,
+  ShoppingCart,
+  ArrowRight,
+  CheckCircle,
+  XCircle,
 } = Icons;

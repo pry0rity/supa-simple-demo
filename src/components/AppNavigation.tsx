@@ -65,10 +65,10 @@ export function AppNavigation({ isCollapsed }: AppNavigationProps) {
         Batch Requests
       </NavLink>
       <NavLink to="/nplus1" icon={AlertOctagon} isCollapsed={isCollapsed}>
-        N+1 Query Problem
+        Supabase N+1 Demo
       </NavLink>
       <NavLink to="/nplus1-debug" icon={AlertOctagon} isCollapsed={isCollapsed}>
-        N+1 Query Debug
+        JSONPlaceholder N+1 Demo
       </NavLink>
       <NavLink to="/client-component" icon={Users} isCollapsed={isCollapsed}>
         Client Component

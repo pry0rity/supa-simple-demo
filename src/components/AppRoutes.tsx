@@ -5,8 +5,8 @@ import SlowApiPage from "../pages/SlowApiPage";
 import ErrorPage from "../pages/ErrorPage";
 import DbQueryPage from "../pages/DbQueryPage";
 import BatchRequestsPage from "../pages/BatchRequestsPage";
-import { NPlusOneQueryPage } from "../pages/NPlusOneQueryPage";
-import { NPlusOneQueryDebugPage } from "../pages/NPlusOneQueryDebugPage";
+import { SupabaseNPlusOnePage } from "../pages/SupabaseNPlusOnePage";
+import { JsonPlaceholderNPlusOnePage } from "../pages/JsonPlaceholderNPlusOnePage";
 import ClientComponentPage from "../pages/ClientComponentPage";
 import ThirdPartyApiPage from "../pages/ThirdPartyApiPage";
 
@@ -18,8 +18,8 @@ export function AppRoutesComponent() {
       <Route path="/error" element={<ErrorPage />} />
       <Route path="/db-query" element={<DbQueryPage />} />
       <Route path="/batch-requests" element={<BatchRequestsPage />} />
-      <Route path="/nplus1" element={<NPlusOneQueryPage />} />
-      <Route path="/nplus1-debug" element={<NPlusOneQueryDebugPage />} />
+      <Route path="/nplus1" element={<SupabaseNPlusOnePage />} />
+      <Route path="/nplus1-debug" element={<JsonPlaceholderNPlusOnePage />} />
       <Route path="/client-component" element={<ClientComponentPage />} />
       <Route path="/third-party-api" element={<ThirdPartyApiPage />} />
     </Routes>

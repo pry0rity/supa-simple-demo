@@ -1,56 +1,12 @@
-import * as Sentry from '@sentry/react';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
-const API_BASE_URL = 'http://localhost:3000/api';
-
-// Simplified fetch utility with better trace context propagation
+// Simple fetch utility without custom Sentry instrumentation
 async function simpleFetch(url: string, options?: RequestInit) { 
-  return Sentry.startSpan(
-    {
-      name: `fetch.${url.split('?')[0]}`, // Remove query params from span name for cleaner display
-      op: 'http.client',
-      description: `Fetch request to ${url}`,
-    },
-    async (span) => {
-      try {
-        // Create headers if they don't exist
-        const headers = options?.headers || {};
-        
-        // Create a modified options object with Sentry trace headers
-        const tracedOptions = {
-          ...options,
-          headers: {
-            ...headers,
-            // Add Sentry trace propagation header
-            'sentry-trace': span?.toTraceparent() || ''
-          }
-        };
-        
-        // Record span start time for more accurate timing
-        const startTime = performance.now();
-        
-        // Make the fetch request with trace context
-        const response = await fetch(url, tracedOptions);
-        
-        // Record timing data
-        span?.setData('response_time_ms', Math.round(performance.now() - startTime));
-        span?.setData('status_code', response.status);
-        span?.setStatus(response.ok ? 'ok' : 'error');
-        
-        // Parse and return response
-        return await response.json();
-      } catch (error) {
-        // Mark span as error and capture details
-        span?.setStatus('error');
-        span?.setData('error', error instanceof Error ? error.message : String(error));
-        
-        // Capture the error with Sentry
-        Sentry.captureException(error);
-        
-        // Re-throw the error
-        throw error;
-      }
-    }
-  );
+  const response = await fetch(url, options);
+  if (!response.ok) {
+    throw new Error(`HTTP error! status: ${response.status}`);
+  }
+  return response.json();
 }
 
 export const api = {
@@ -82,12 +38,12 @@ export const api = {
   },
   
   // N+1 Query Demo methods
-  getUsersWithPosts: async () => {
-    return simpleFetch(`${API_BASE_URL}/users-with-posts`);
+  getPost: async (id: number) => {
+    return simpleFetch(`${API_BASE_URL}/posts/${id}`);
   },
-  
-  getUsersWithPostsOptimized: async () => {
-    return simpleFetch(`${API_BASE_URL}/users-with-posts-optimized`);
+
+  getAllPosts: async () => {
+    return simpleFetch(`${API_BASE_URL}/posts`);
   },
 
   // Add new methods for posts and comments
@@ -97,19 +53,28 @@ export const api = {
     return posts.map((post: { id: number }) => post.id);
   },
 
-  getPost: async (postId: number) => {
-    return simpleFetch(`${API_BASE_URL}/posts/${postId}`);
-  },
-
   getPosts: async () => {
-    return simpleFetch('https://jsonplaceholder.typicode.com/posts');
+    return simpleFetch(`${API_BASE_URL}/posts`);
   },
 
   getPostComments: async (postId: number) => {
-    return simpleFetch(`https://jsonplaceholder.typicode.com/posts/${postId}/comments`);
+    return simpleFetch(`${API_BASE_URL}/posts/${postId}/comments`);
   },
 
   getAllComments: async () => {
     return simpleFetch('https://jsonplaceholder.typicode.com/comments');
-  }
+  },
+
+  // Product-related endpoints for N+1 demo (using Supabase)
+  getProducts: async () => {
+    return simpleFetch(`${API_BASE_URL}/posts`);
+  },
+
+  getProductReviews: async (productId: number) => {
+    return simpleFetch(`${API_BASE_URL}/posts/${productId}/comments`);
+  },
+
+  getAllReviews: async () => {
+    return simpleFetch(`${API_BASE_URL}/comments`);
+  },
 };

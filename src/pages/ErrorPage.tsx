@@ -11,6 +11,7 @@ const ErrorPage = () => {
 
   const handleClientError = () => {
     const err = new Error("A client-side error occurred");
+    console.error("Client error triggered:", err);
     setError({
       message: err.message,
       source: "client",
@@ -22,16 +23,14 @@ const ErrorPage = () => {
     setLoading(true);
     try {
       const response = await fetch("http://localhost:3000/api/debug-sentry");
+
       if (!response.ok) {
-        await response.json(); // Still need to consume the response
-        const err = new Error("An error occurred on the server");
-        setError({ message: err.message, source: "server" });
-        // Only report to Sentry after we have the backend response
-        Sentry.captureException(err);
+        throw new Error(`Server error: ${response.status}`);
       }
     } catch (err) {
+      console.error("Error occurred:", err);
       setError({
-        message: err instanceof Error ? err.message : "Network error occurred",
+        message: "Something went wrong",
         source: "server",
       });
       Sentry.captureException(err);
